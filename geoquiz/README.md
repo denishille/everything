@@ -45,7 +45,8 @@ Quellen gebaut:
   World Factbook (Bevölkerung, BIP, Lebenserwartung, Küste, CO₂ …)
 - [lipis/flag-icons](https://github.com/lipis/flag-icons) – Flaggen als SVG
 - [Natural Earth](https://github.com/nvkelso/natural-earth-vector) 1:50m
-  admin_0_countries – Landesumrisse für die Entfernung Grenze zu Grenze
+  admin_0_countries – Landesumrisse für die Entfernung Grenze zu Grenze und
+  für die Karte im GeoFind-Ergebnis (`map.js`)
 
 ```bash
 git clone --depth 1 https://github.com/factbook/factbook.json /tmp/factbook
@@ -63,6 +64,9 @@ python3 tools/build_data.py --countries /tmp/countries.json --factbook /tmp/fact
 curl -o /tmp/ne50.geojson https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson
 node tools/build_distances.js /tmp/ne50.geojson data.js tools/distances.json
 python3 tools/build_data.py ... --out data.js
+
+# Umrisse für die kleine Karte im Ergebnis (stark vereinfacht, ~100 KB)
+python3 tools/build_map.py --geo /tmp/ne50.geojson --data data.js --out map.js
 ```
 
 ## Logo statt Schriftzug

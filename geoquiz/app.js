@@ -273,6 +273,131 @@
     renderDailyResult();
   }
 
+
+  // ---- Kleine Karte fuer das GeoFind-Ergebnis
+  const SH = window.GEO_SHAPES;
+  const SHAPES = SH ? SH.s.map(([code, rings]) => ({
+    code,
+    rings: rings.map(flat => {
+      const pts = []; let x = 0, y = 0;
+      for (let i = 0; i < flat.length; i += 2) {
+        if (i === 0) { x = flat[0]; y = flat[1]; } else { x += flat[i]; y += flat[i + 1]; }
+        pts.push([x / SH.q, y / SH.q]);
+      }
+      return pts;
+    })
+  })) : [];
+  const SHAPE_BY_ISO = {};
+  SHAPES.forEach(sh => { if (sh.code) (SHAPE_BY_ISO[sh.code] = SHAPE_BY_ISO[sh.code] || []).push(sh); });
+
+  const ringBox = ring => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of ring) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    return [x0, y0, x1, y1];
+  };
+
+  function mapSvg(s) {
+    if (!SHAPES.length) return '';
+    const W = 640, H = 380;
+    const own = SHAPE_BY_ISO[s.iso3] || [];
+    const ownRings = own.reduce((a, sh) => a.concat(sh.rings), []);
+    // Anker: groesste eigene Flaeche, sonst der Mittelpunkt aus den Daten
+    let lon0 = s.latlng ? s.latlng[1] : 0, lat0 = s.latlng ? s.latlng[0] : 0;
+    let main = null;
+    for (const r of ownRings) {
+      const b = ringBox(r), size = (b[2] - b[0]) * (b[3] - b[1]) + (b[2] - b[0]) + (b[3] - b[1]);
+      if (!main || size > main.size) main = { b, size };
+    }
+    if (main) { lon0 = (main.b[0] + main.b[2]) / 2; lat0 = (main.b[1] + main.b[3]) / 2; }
+    // Umrisse liegen je Ring auf einer Seite der Datumsgrenze: Ring als Ganzes verschieben
+    const shiftFor = (b, c) => -360 * Math.round(((b[0] + b[2]) / 2 - c) / 360);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const r of ownRings) {
+      const b = ringBox(r), sft = shiftFor(b, lon0);
+      if (Math.abs((b[0] + b[2]) / 2 + sft - lon0) > 55) continue;   // ferne Aussengebiete ignorieren
+      x0 = Math.min(x0, b[0] + sft); x1 = Math.max(x1, b[2] + sft);
+      y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[3]);
+    }
+    if (!isFinite(x0)) { x0 = x1 = lon0; y0 = y1 = lat0; }
+    const latC = Math.max(-74, Math.min(74, (y0 + y1) / 2)), lonC = (x0 + x1) / 2;
+    const k = Math.max(0.3, Math.cos(latC * Math.PI / 180));
+
+    function build(viewW) {
+      viewW = Math.max(17, Math.min(150, viewW));
+      if (viewW * H / W > 125) viewW = 125 * W / H;
+      const scale = W / viewW;
+      const pr = (lon, lat) => [W / 2 + (lon - lonC) * k * scale, H / 2 - (lat - latC) * scale];
+      const land = [], mine = [], labels = [];
+      let myBox = null, context = 0;
+      for (const sh of SHAPES) {
+        const isMine = sh.code === s.iso3;
+        let best = null;
+        for (const r of sh.rings) {
+          const b = ringBox(r), sft = shiftFor(b, lonC);
+          const p0 = pr(b[0] + sft, b[3]), p1 = pr(b[2] + sft, b[1]);
+          if (p1[0] < -4 || p0[0] > W + 4 || p1[1] < -4 || p0[1] > H + 4) continue;
+          let d = '';
+          for (let i = 0; i < r.length; i++) {
+            const p = pr(r[i][0] + sft, r[i][1]);
+            d += (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+          }
+          (isMine ? mine : land).push(d + 'Z');
+          const vx0 = Math.max(p0[0], 0), vx1 = Math.min(p1[0], W), vy0 = Math.max(p0[1], 0), vy1 = Math.min(p1[1], H);
+          const area = (vx1 - vx0) * (vy1 - vy0);
+          if (!best || area > best.area) best = { area, x: (vx0 + vx1) / 2, y: (vy0 + vy1) / 2, w: vx1 - vx0, h: vy1 - vy0 };
+          if (isMine) myBox = !myBox ? { x0: p0[0], y0: p0[1], x1: p1[0], y1: p1[1] }
+            : { x0: Math.min(myBox.x0, p0[0]), y0: Math.min(myBox.y0, p0[1]), x1: Math.max(myBox.x1, p1[0]), y1: Math.max(myBox.y1, p1[1]) };
+        }
+        if (isMine || !sh.code || !best) continue;
+        if (best.area > 4000) context++;
+        const c = BY_ISO[sh.code];
+        if (c && best.w > 86 && best.h > 40) labels.push({ x: best.x, y: best.y, area: best.area, name: c.name });
+      }
+      return { land, mine, labels, myBox, context, pr };
+    }
+
+    // Inselstaaten brauchen mehr Umgebung, damit man sie einordnen kann
+    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.52;
+    let view = build(viewW);
+    for (let i = 0; i < 3 && view.context < 2 && viewW < 150; i++) {
+      viewW *= 2.2;
+      view = build(viewW);
+    }
+    const { land, mine, myBox } = view;
+    view.labels.sort((a, b) => b.area - a.area);
+    const shown = [];
+    const mb = view.myBox;
+    for (const l of view.labels) {
+      if (shown.length >= 8) break;
+      // Beschriftung nicht auf das gesuchte Land legen
+      if (mb && l.x > mb.x0 - 10 && l.x < mb.x1 + 10 && l.y > mb.y0 - 10 && l.y < mb.y1 + 10) {
+        const below = mb.y1 + 28, above = mb.y0 - 20;
+        if (below < H - 8) l.y = below; else if (above > 20) l.y = above; else continue;
+      }
+      if (shown.some(o => Math.abs(o.x - l.x) < 120 && Math.abs(o.y - l.y) < 30)) continue;
+      // Am Bildrand nach innen ausrichten, damit der Name nicht abgeschnitten wird
+      const hw = l.name.length * 5.6 + 6;
+      if (l.x - hw < 6) { l.x = 10; l.anchor = 'start'; }
+      else if (l.x + hw > W - 6) { l.x = W - 10; l.anchor = 'end'; }
+      l.y = Math.max(24, Math.min(H - 14, l.y));
+      shown.push(l);
+    }
+    // Sehr kleine Laender zusaetzlich mit einem Ring markieren
+    let marker = '';
+    if (!myBox || Math.max(myBox.x1 - myBox.x0, myBox.y1 - myBox.y0) < 72) {
+      const m = myBox ? [(myBox.x0 + myBox.x1) / 2, (myBox.y0 + myBox.y1) / 2] : view.pr(lon0, lat0);
+      marker = `<g fill="none" stroke-linecap="round"><circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="34" stroke="#111" stroke-width="6"/>`
+             + `<circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="34" stroke="#d9ff3d" stroke-width="3"/></g>`;
+    }
+    return `<div class="geo-map"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Lage von ${esc(s.name)}">
+      <rect width="${W}" height="${H}" fill="#dce8ea"/>
+      <path d="${land.join('')}" fill="#d8d3c8" stroke="#f4f2ea" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="${mine.join('')}" fill="#d9ff3d" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/>
+      ${marker}
+      <g class="map-lbl">${shown.map(l => `<text x="${l.x.toFixed(0)}" y="${l.y.toFixed(0)}"${l.anchor ? ` style="text-anchor:${l.anchor}"` : ''}>${esc(l.name.toUpperCase())}</text>`).join('')}</g>
+    </svg></div>`;
+  }
+
   function renderDailyResult() {
     const box = $('#daily-result');
     if (!daily.done) { box.hidden = true; return; }
@@ -288,6 +413,7 @@
         <span>${fmtCompact(s.stats.pop)} Einwohner</span><span>${nf0.format(s.stats.area)} km²</span>
         ${s.stats.gdppc != null ? `<span>BIP/Kopf ${nf0.format(s.stats.gdppc)} $</span>` : ''}
       </div>
+      ${mapSvg(s)}
       <div class="actions">
         ${dPrev ? `<button class="ghost" id="btn-daily-prev">‹ Rätsel #${dPrev}</button>` : ''}
         ${dNext ? `<button class="ghost" id="btn-daily-next">Rätsel #${dNext} ›</button>` : ''}

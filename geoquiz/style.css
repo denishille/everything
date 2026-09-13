@@ -298,4 +298,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
   .cat .cn { font-size: .88rem; line-height: 1.25; }
   .cat .cd { display: none; }
 }
+
+/* Kleine Karte im GeoFind-Ergebnis */
+.geo-map { margin: 1.4rem auto .4rem; max-width: 620px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
+.geo-map svg { display: block; width: 100%; height: auto; }
+.map-lbl text {
+  font-family: inherit; font-size: 19px; font-weight: 700; letter-spacing: .04em;
+  fill: #7a7367; text-anchor: middle; paint-order: stroke; stroke: #f2efe6; stroke-width: 6px; stroke-linejoin: round;
 }

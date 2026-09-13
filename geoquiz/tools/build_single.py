@@ -37,8 +37,9 @@ html = re.sub(r'\n\s*<link rel="manifest"[^>]*>', "", html)
 
 html = html.replace('<link rel="stylesheet" href="style.css">', "<style>\n" + read("style.css") + "\n</style>")
 html = html.replace('<script src="data.js"></script>', "<script>\n" + read("data.js") + "\n</script>")
+html = html.replace('<script src="map.js"></script>', "<script>\n" + read("map.js") + "\n</script>")
 html = html.replace('<script src="app.js"></script>', "<script>\n" + read("app.js") + "\n</script>")
-assert 'href="style.css"' not in html and 'src="data.js"' not in html and 'src="app.js"' not in html
+assert 'href="style.css"' not in html and 'src="data.js"' not in html and 'src="app.js"' not in html and 'src="map.js"' not in html
 
 out = os.path.join(here, "geoquiz.html")
 open(out, "w", encoding="utf-8").write(html)
