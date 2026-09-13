@@ -320,7 +320,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 }
 
 /* Kleine Karte im GeoFind-Ergebnis */
-.geo-map { margin: 1.4rem auto .4rem; max-width: 620px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
+.geo-map { margin: 1.4rem auto .4rem; max-width: 700px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
 .geo-map svg { display: block; width: 100%; height: auto; }
 .map-lbl text {
   font-family: inherit; font-size: 19px; font-weight: 700; letter-spacing: .04em;
@@ -803,7 +803,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     const k = Math.max(0.3, Math.cos(latC * Math.PI / 180));
 
     function build(viewW) {
-      viewW = Math.max(17, Math.min(150, viewW));
+      viewW = Math.max(22, Math.min(160, viewW));
       if (viewW * H / W > 125) viewW = 125 * W / H;
       const scale = W / viewW;
       const pr = (lon, lat) => [W / 2 + (lon - lonC) * k * scale, H / 2 - (lat - latC) * scale];
@@ -837,7 +837,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     }
 
     // Inselstaaten brauchen mehr Umgebung, damit man sie einordnen kann
-    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.52;
+    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.4;
     let view = build(viewW);
     for (let i = 0; i < 3 && view.context < 2 && viewW < 150; i++) {
       viewW *= 2.2;

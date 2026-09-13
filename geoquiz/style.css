@@ -300,7 +300,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 }
 
 /* Kleine Karte im GeoFind-Ergebnis */
-.geo-map { margin: 1.4rem auto .4rem; max-width: 620px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
+.geo-map { margin: 1.4rem auto .4rem; max-width: 700px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
 .geo-map svg { display: block; width: 100%; height: auto; }
 .map-lbl text {
   font-family: inherit; font-size: 19px; font-weight: 700; letter-spacing: .04em;

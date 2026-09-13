@@ -323,7 +323,7 @@
     const k = Math.max(0.3, Math.cos(latC * Math.PI / 180));
 
     function build(viewW) {
-      viewW = Math.max(17, Math.min(150, viewW));
+      viewW = Math.max(22, Math.min(160, viewW));
       if (viewW * H / W > 125) viewW = 125 * W / H;
       const scale = W / viewW;
       const pr = (lon, lat) => [W / 2 + (lon - lonC) * k * scale, H / 2 - (lat - latC) * scale];
@@ -357,7 +357,7 @@
     }
 
     // Inselstaaten brauchen mehr Umgebung, damit man sie einordnen kann
-    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.52;
+    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.4;
     let view = build(viewW);
     for (let i = 0; i < 3 && view.context < 2 && viewW < 150; i++) {
       viewW *= 2.2;
