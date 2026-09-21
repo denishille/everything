@@ -6,17 +6,25 @@ Bedeutungsnähe. Die wird nicht vorberechnet, sondern im Browser aus
 Wortvektoren gerechnet — dann kostet ein Rätsel keine zusätzlichen Daten und
 alle künftigen Rätsel stecken schon in dieser einen Datei.
 
-Damit das ins Netz passt, werden die 300 Dimensionen des Modells per
-Hauptkomponentenanalyse auf --dims gestaucht und je Dimension auf ein Byte
-quantisiert. Bei 96 Dimensionen bleibt die Nachbarschaft der Wörter dabei
-praktisch erhalten (Stichprobe: ~3/4 der zehn nächsten Nachbarn identisch),
-bei rund einem Drittel der Größe.
+Drei Dinge, die dabei wichtig sind:
+
+* **Groß- und Kleinschreibung.** „fest" und „Fest" sind im Modell zwei Wörter
+  mit zwei Vektoren. Beide kommen in die Liste, sonst ist das Substantiv nicht
+  erreichbar, weil das häufigere Adjektiv es verdeckt.
+* **Wortformen.** Gerankt wird eine Grundform je Vektor, aber „Hunde",
+  „Hundes" und „hunde" sollen trotzdem gefunden werden. Solche Formen stehen
+  als Aliasse dabei und zeigen auf ihre Grundform.
+* **Größe.** Die 300 Dimensionen des Modells werden per Hauptkomponenten-
+  analyse auf --dims gestaucht und mit --bits Bit je Dimension quantisiert.
+  192 Dimensionen zu 4 Bit sind genauso groß wie 96 zu 8 Bit, treffen die
+  Nachbarschaft des Originals aber deutlich besser (Stichprobe: 0,77 statt
+  0,72 der zehn nächsten Nachbarn).
 
 Quellen (werden nicht mitversioniert, siehe README):
   - explosion/spacy-models  de_core_news_md (Wortvektoren, 20.000 × 300)
   - hermitdave/FrequencyWords  de_50k.txt (Häufigkeit, bestimmt die Wortliste)
   - gambolputty/german-nouns   nouns.csv  (Substantive: Großschreibung, Rätselwörter)
-  - michmech/lemmatization-lists  lemmatization-de.txt (nur Grundformen behalten)
+  - michmech/lemmatization-lists  lemmatization-de.txt (Grundformen und ihre Formen)
 
 Aufruf:
   python3 tools/build_words.py --model de_core_news_md-3.7.0-py3-none-any.whl \
@@ -24,6 +32,7 @@ Aufruf:
 """
 import argparse
 import base64
+import collections
 import csv
 import io
 import json
@@ -46,96 +55,187 @@ GESPERRT = {
     "trage", "schrieb", "amen", "king", "sir", "madam", "mister", "lady", "boss", "baby",
     "arsch", "hure", "scheiße", "titten", "schwanz", "nutte", "fotze", "wichser", "bastard",
     "penis", "sex", "kacke", "pisse", "hurensohn", "schlampe", "nigger", "neger",
+    "gerade", "weiß", "bitte", "selbst", "fremde", "oberst", "ficken",
+}
+
+# Gleiche Schreibweise, mehrere Bedeutungen: der Vektor mischt sie und das
+# Rätsel wird unfair (bei „Pass" liegen Elfmeter und Visum gleich weit vorn).
+MEHRDEUTIG = {
+    "pass", "bank", "schloss", "hahn", "kiefer", "steuer", "zug", "mutter", "gericht",
+    "flügel", "leiter", "strom", "blatt", "schild", "ton", "kanal", "golf", "reif",
+    "messe", "bar", "kegel", "tor", "star", "linse", "mole", "hut", "kluft", "otter",
 }
 
 # Rätselwörter kommen aus den häufigsten Wörtern; weiter hinten wird es zu speziell.
 POOL_BIS = 4500
 
 
-def vokabular(model, freq, nouns, lemmas):
-    """Wortliste in Häufigkeitsreihenfolge, je Wort die Zeile im Vektormodell."""
-    if model.endswith(".whl"):
-        z = zipfile.ZipFile(model)
-        pfad = next(n for n in z.namelist() if n.endswith("/vocab/vectors"))[: -len("vectors")]
-        lies = lambda n: z.read(pfad + n)
+def modell(pfad):
+    """Vektoren und die Zeilennummer je Wort aus dem spaCy-Modell."""
+    if pfad.endswith(".whl"):
+        z = zipfile.ZipFile(pfad)
+        basis = next(n for n in z.namelist() if n.endswith("/vocab/vectors"))[: -len("vectors")]
+        lies = lambda n: z.read(basis + n)
     else:
-        lies = lambda n: open(os.path.join(model, "vocab", n), "rb").read()
-
+        lies = lambda n: open(os.path.join(pfad, "vocab", n), "rb").read()
     vektoren = np.load(io.BytesIO(lies("vectors")))
     key2row = srsly.msgpack_loads(lies("key2row"))
-    zeile = lambda w: key2row.get(hash_string(w))
+    return vektoren, (lambda w: key2row.get(hash_string(w)))
 
-    grundformen = set()
-    with open(lemmas, encoding="utf-8") as f:
-        for line in f:
-            grundformen.add(line.rstrip("\n").split("\t")[0].lstrip("\ufeff"))
 
-    substantive, eigennamen = {}, set()
+EIGENNAME = {"Toponym", "Vorname", "Nachname", "Eigenname", "Straßenname"}
+
+
+def quellen(nouns, lemmas):
+    """Substantive (mit Großschreibung), Eigennamen und Grundform → Wortformen."""
+    substantive, nur_name = {}, {}
     with open(nouns, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             pos, lemma = row["pos"] or "", row["lemma"]
             if "Substantiv" not in pos or not lemma[:1].isupper():
                 continue
             substantive.setdefault(lemma.lower(), lemma)
-            if {"Toponym", "Vorname", "Nachname", "Eigenname"} & set(pos.split(",")):
-                eigennamen.add(lemma.lower())
+            # Nur wer ausschließlich Name ist, ist ein Eigenname: Winter und Berg
+            # stehen auch als Nachname im Wörterbuch, sind aber ganz normale Wörter.
+            name = bool(EIGENNAME & set(pos.split(",")))
+            nur_name[lemma.lower()] = nur_name.get(lemma.lower(), True) and name
+    eigennamen = {w for w, nur in nur_name.items() if nur}
 
+    formen = collections.defaultdict(set)
+    with open(lemmas, encoding="utf-8") as f:
+        for line in f:
+            teile = line.rstrip("\n").split("\t")
+            if len(teile) != 2:
+                continue
+            grundform, form = teile[0].lstrip("﻿"), teile[1]
+            if WORT.match(form):
+                formen[grundform].add(form)
+    return substantive, eigennamen, formen
+
+
+def taugt_als_raetsel(wort, klein, r_gross, r_klein, substantive, eigennamen, grundformen):
+    """Ist das ein Substantiv, das man suchen lassen kann?
+
+    Heikel sind Großschreibungen, die es nur als Nominalisierung gibt: „das
+    Aber", „das Sein", „das Können". Sie verraten sich daran, dass die
+    Kleinschreibung im Modell die häufigere ist — bei echten Substantiven ist es
+    umgekehrt oder gleich (Winter, Schokolade, Haus).
+
+    Ausnahme sind Paare aus Adjektiv und Substantiv wie fest/Fest oder
+    recht/Recht: dort ist die Kleinschreibung zwar häufiger, das Substantiv aber
+    trotzdem ein ganz normales Wort. Die erkennt man daran, dass die
+    Kleinschreibung eine Grundform ist (also ein Adjektiv, kein Funktionswort
+    und kein Infinitiv) und nicht um Größenordnungen häufiger.
+    """
+    if not (len(wort) >= 4 and wort[0].isupper() and klein in substantive):
+        return False
+    if klein in eigennamen or klein in GESPERRT or klein in MEHRDEUTIG:
+        return False
+    if r_klein is not None and r_gross > r_klein:
+        adjektivpaar = (klein in grundformen and not klein.endswith(("en", "n"))
+                        and r_gross <= 5 * r_klein)
+        if not adjektivpaar:
+            return False
+    return True
+
+
+def vokabular(freq, zeile, substantive, eigennamen, grundformen):
+    """Eine Grundform je Vektorzeile, in Häufigkeitsreihenfolge.
+
+    Klein- und Großschreibung werden getrennt geprüft: steht das Substantiv im
+    Modell auf einer eigenen Zeile, bekommt es einen eigenen Eintrag.
+    """
     woerter, zeilen, pool, belegt = [], [], [], set()
     with open(freq, encoding="utf-8") as f:
         for line in f:
             klein = line.split(" ")[0]
             if not WORT.match(klein):
                 continue
-            # Groß oder klein? Die Schreibweise gewinnt, die im Modell häufiger
-            # ist (kleinere Zeilennummer) — so wird aus "hund" das Substantiv
-            # "Hund", aus "Ich" aber das Pronomen "ich".
-            kandidaten = [(zeile(w), w) for w in {klein, substantive.get(klein, klein)} if zeile(w) is not None]
-            if not kandidaten:
-                continue
-            r, wort = min(kandidaten)
-            # Gebeugte Formen raus: eine Grundform je Bedeutung reicht.
-            if r in belegt or not (wort in grundformen or klein in grundformen or klein in substantive):
-                continue
-            belegt.add(r)
-            i = len(woerter)
-            woerter.append(wort)
-            zeilen.append(r)
-            raetselwort = (
-                i < POOL_BIS
-                and len(wort) >= 4
-                and wort[0].isupper()
-                and klein in substantive
-                and klein not in eigennamen
-                and klein not in grundformen  # schließt Wörter aus, die auch Verb oder Adjektiv sind
-                and klein not in GESPERRT
-            )
-            if raetselwort:
-                pool.append(i)
-    return woerter, vektoren[zeilen].astype(np.float32), pool
+            gross = substantive.get(klein)
+            kandidaten = [(klein, klein in grundformen)]
+            if gross and gross != klein:
+                kandidaten.append((gross, True))          # Substantive sind immer Grundform
+            r_klein = zeile(klein)
+            for wort, ist_grundform in kandidaten:
+                r = zeile(wort)
+                if r is None or r in belegt or not ist_grundform:
+                    continue
+                belegt.add(r)
+                i = len(woerter)
+                woerter.append(wort)
+                zeilen.append(r)
+                if (wort != klein and i < POOL_BIS
+                        and taugt_als_raetsel(wort, klein, r, r_klein,
+                                              substantive, eigennamen, grundformen)):
+                    pool.append(i)
+    return woerter, zeilen, pool
 
 
-def stauchen(X, dims):
-    """Auf dims Hauptkomponenten projizieren und je Dimension auf int8 quantisieren."""
+def aliasse(woerter, zeilen, freq, zeile, formen):
+    """Schreibweisen, die auf ein Wort der Liste zeigen sollen.
+
+    Zwei Quellen: die gebeugten Formen aus der Lemmaliste und alles aus der
+    Häufigkeitsliste, das im Modell auf derselben Zeile landet (Plural,
+    Schweizer ss, Tippfehler aus den Untertiteln).
+    """
+    zeile_zu_wort = {r: i for i, r in enumerate(zeilen)}
+    bekannt = {w.lower() for w in woerter}
+    treffer = collections.defaultdict(set)
+
+    for i, w in enumerate(woerter):
+        for form in formen.get(w, ()):
+            if form.lower() not in bekannt:
+                treffer[i].add(form.lower())
+
+    with open(freq, encoding="utf-8") as f:
+        for line in f:
+            w = line.split(" ")[0]
+            if not WORT.match(w) or w.lower() in bekannt:
+                continue
+            r = zeile(w)
+            i = zeile_zu_wort.get(r) if r is not None else None
+            if i is not None:
+                treffer[i].add(w.lower())
+
+    # Eine Schreibweise gehört zu genau einem Wort — bei Streit gewinnt das häufigere.
+    vergeben, sauber = {}, collections.defaultdict(set)
+    for i in sorted(treffer):
+        for form in treffer[i]:
+            if form not in vergeben:
+                vergeben[form] = i
+                sauber[i].add(form)
+    return ["|".join(sorted(sauber.get(i, ()))) for i in range(len(woerter))], len(vergeben)
+
+
+def stauchen(X, dims, bits):
+    """Auf dims Hauptkomponenten projizieren und je Dimension auf bits Bit quantisieren."""
     X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-9)
     X = X - X.mean(0)
     _, _, basis = np.linalg.svd(X, full_matrices=False)
     P = X @ basis[:dims].T
-    skala = np.abs(P).max(0) / 127.0
-    Q = np.round(P / skala).clip(-127, 127).astype(np.int8)
+    stufen = 2 ** (bits - 1) - 1
+    skala = np.abs(P).max(0) / stufen
+    Q = np.round(P / skala).clip(-stufen, stufen).astype(np.int8)
     return Q, skala
 
 
-def probe(woerter, Q, skala, beispiele=("Hund", "Winter", "Musik", "Meer")):
+def packen(Q, bits):
+    """int8 direkt, 4 Bit paarweise in ein Byte (unteres Halbbyte zuerst, Versatz 8)."""
+    if bits == 8:
+        return Q.tobytes()
+    u = (Q + 8).astype(np.uint8)
+    return (u[:, 0::2] | (u[:, 1::2] << 4)).tobytes()
+
+
+def probe(woerter, Q, skala, beispiele=("Hund", "Winter", "Musik", "Fest")):
     """Zur Kontrolle: die nächsten Nachbarn so, wie der Browser sie sehen wird."""
     M = Q.astype(np.float32) * skala
     M /= np.linalg.norm(M, axis=1, keepdims=True) + 1e-9
     idx = {w: i for i, w in enumerate(woerter)}
     for w in beispiele:
-        if w not in idx:
-            continue
-        s = M @ M[idx[w]]
-        nah = [woerter[i] for i in np.argsort(-s)[:9] if i != idx[w]]
-        print(f"  {w:14} {', '.join(nah)}")
+        if w in idx:
+            nah = [woerter[i] for i in np.argsort(-(M @ M[idx[w]]))[:9] if i != idx[w]]
+            print(f"  {w:14} {', '.join(nah)}")
 
 
 def main():
@@ -144,26 +244,33 @@ def main():
     ap.add_argument("--freq", required=True)
     ap.add_argument("--nouns", required=True)
     ap.add_argument("--lemmas", required=True)
-    ap.add_argument("--dims", type=int, default=96)
+    ap.add_argument("--dims", type=int, default=192)
+    ap.add_argument("--bits", type=int, default=4, choices=(4, 8))
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
-    woerter, X, pool = vokabular(a.model, a.freq, a.nouns, a.lemmas)
-    print(f"{len(woerter)} Wörter, davon {len(pool)} als Rätselwort")
+    vektoren, zeile = modell(a.model)
+    substantive, eigennamen, formen = quellen(a.nouns, a.lemmas)
+    woerter, zeilen, pool = vokabular(a.freq, zeile, substantive, eigennamen, set(formen))
+    alias, n_alias = aliasse(woerter, zeilen, a.freq, zeile, formen)
+    print(f"{len(woerter)} Wörter, {n_alias} weitere Schreibweisen, {len(pool)} Rätselwörter")
     if len(pool) < 365:
         sys.exit("zu wenige Rätselwörter")
 
-    Q, skala = stauchen(X, a.dims)
-    print(f"{a.dims} Dimensionen, {Q.nbytes // 1024} KB Vektoren")
+    Q, skala = stauchen(vektoren[zeilen].astype(np.float32), a.dims, a.bits)
+    roh = packen(Q, a.bits)
+    print(f"{a.dims} Dimensionen à {a.bits} Bit, {len(roh) // 1024} KB Vektoren")
     probe(woerter, Q, skala)
 
     daten = {
-        "quelle": "de_core_news_md / FrequencyWords / german-nouns",
+        "quelle": "de_core_news_md / FrequencyWords / german-nouns / lemmatization-lists",
         "dim": a.dims,
+        "bits": a.bits,
         "skala": [round(float(s), 8) for s in skala],
         "woerter": ",".join(woerter),
+        "alias": ",".join(alias),
         "pool": pool,
-        "vek": base64.b64encode(Q.tobytes()).decode("ascii"),
+        "vek": base64.b64encode(roh).decode("ascii"),
     }
     with open(a.out, "w", encoding="utf-8") as f:
         f.write("window.WORD_DATA = ")

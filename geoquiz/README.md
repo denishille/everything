@@ -37,14 +37,20 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 ## Wordplay
 
 - Nachbau von contexto.me: ein gesuchtes Wort, beliebig viele Versuche.
-- Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 9848 das am weitesten
+- Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 9910 das am weitesten
   entfernte; der Balken zeigt den Rang logarithmisch.
 - Die Reihenfolge kommt aus der Bedeutungsnähe zweier Wörter (Kosinus zwischen
   ihren Wortvektoren). Gerechnet wird sie im Browser, beim Öffnen des Rätsels —
   deshalb kostet kein weiteres Rätsel zusätzliche Daten.
-- `words.js` ist knapp 1,3 MB und wird erst geladen, wenn das Spiel geöffnet wird.
-- Tolerant bei gebeugten Formen: „Häuser“, „Blumen“ und „strasse“ finden Haus,
-  Blume und Straße.
+- `words.js` ist 1,9 MB (gepackt 1,0 MB) und wird erst geladen, wenn das Spiel
+  geöffnet wird.
+- **Groß- und Kleinschreibung zählt.** „fest“ und „Fest“ sind zwei Wörter mit
+  zwei Vektoren und zwei Rängen. Wer groß schreibt, meint das Substantiv und
+  bekommt nur das. Wer klein schreibt, bekommt beide Zeilen auf einmal — raten
+  kostet ja nichts.
+- Tolerant bei gebeugten Formen: „Häuser“, „lief“, „ging“ und „strasse“ finden
+  Haus, laufen, gehen und Straße. Rund 51.000 solcher Schreibweisen sind
+  hinterlegt, gerankt wird immer die Grundform.
 - „Auflösen“ zeigt das Wort (zwei Klicks, der erste fragt nach). Das Rätsel gilt
   dann als erledigt, aber nicht als gelöst, und zählt nicht in der Statistik.
 
@@ -91,8 +97,9 @@ bleibt der Schriftzug. Höhe wird automatisch auf 30 px skaliert (26 px auf dem
 Handy), am besten ein SVG oder ein PNG mit mindestens 120 px Höhe und
 transparentem Hintergrund. `tools/build_single.py` bettet das Logo als
 data-URI in `geoquiz.html` ein.
-`words.js` (9848 Wörter mit Vektoren, davon 1856 als Rätselwort) braucht
-`pip install spacy numpy` und diese Quellen:
+`words.js` (9910 Wörter mit Vektoren, davon 1939 als Rätselwort, dazu rund
+51.000 weitere Schreibweisen) braucht `pip install spacy numpy` und diese
+Quellen:
 
 - [explosion/spacy-models](https://github.com/explosion/spacy-models) –
   `de_core_news_md`, 20.000 Wortvektoren mit 300 Dimensionen
@@ -101,7 +108,12 @@ data-URI in `geoquiz.html` ein.
 - [gambolputty/german-nouns](https://github.com/gambolputty/german-nouns) –
   Substantive: Großschreibung und der Vorrat an Rätselwörtern
 - [michmech/lemmatization-lists](https://github.com/michmech/lemmatization-lists) –
-  Grundformen; gebeugte Formen fliegen raus
+  Grundformen und ihre gebeugten Formen
+
+Die 300 Dimensionen des Modells werden dabei auf 192 gestaucht und mit 4 Bit je
+Dimension gespeichert. Das ist genauso groß wie 96 Dimensionen zu 8 Bit, trifft
+die Nachbarschaft des Originalmodells aber besser (0,77 statt 0,72 der zehn
+nächsten Nachbarn).
 
 ```bash
 curl -LO https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.7.0/de_core_news_md-3.7.0-py3-none-any.whl

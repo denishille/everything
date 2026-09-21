@@ -927,25 +927,39 @@
   //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
   // =================================================================
   const wordKey = n => 'word.' + n;
-  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, won: false, ranks: null };
+  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, won: false, lastN: 1, ranks: null };
   let WORDS = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
 
   function initWords(d) {
     const list = d.woerter.split(','), dim = d.dim, n = list.length;
     const bin = atob(d.vek), vec = new Float32Array(n * dim);
+    const proWort = d.bits === 4 ? dim >> 1 : dim;                    // Bytes je Wort
     for (let i = 0; i < n; i++) {
-      const o = i * dim;
+      const o = i * dim, b = i * proWort;
       let len = 0;
       for (let k = 0; k < dim; k++) {
-        const v = (bin.charCodeAt(o + k) << 24 >> 24) * d.skala[k];   // int8 zurückskalieren
+        // 4 Bit: zwei Werte je Byte, unteres Halbbyte zuerst, Versatz 8
+        const q = d.bits === 4
+          ? ((k & 1 ? bin.charCodeAt(b + (k >> 1)) >> 4 : bin.charCodeAt(b + (k >> 1)) & 15) - 8)
+          : (bin.charCodeAt(b + k) << 24 >> 24);
+        const v = q * d.skala[k];
         vec[o + k] = v; len += v * v;
       }
       len = 1 / (Math.sqrt(len) || 1);
       for (let k = 0; k < dim; k++) vec[o + k] *= len;                // normiert: Skalarprodukt = Kosinus
     }
-    const byWord = new Map();
-    list.forEach((w, i) => { const k = w.toLowerCase(); if (!byWord.has(k)) byWord.set(k, i); });
-    WORDS = { list, byWord, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
+    // exakt: mit Schreibweise. klein: alle Einträge zu einer Kleinschreibung
+    // (fest/Fest). alias: gebeugte Formen und Nebenschreibweisen.
+    const exakt = new Map(), klein = new Map(), alias = new Map();
+    list.forEach((w, i) => {
+      exakt.set(w, i);
+      const k = w.toLowerCase();
+      if (klein.has(k)) klein.get(k).push(i); else klein.set(k, [i]);
+    });
+    (d.alias || '').split(',').forEach((s, i) => {
+      if (s) for (const f of s.split('|')) if (!alias.has(f)) alias.set(f, i);
+    });
+    WORDS = { list, exakt, klein, alias, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
   }
 
   // words.js ist groß und wird nur für dieses Spiel gebraucht: erst beim Öffnen laden.
@@ -991,11 +1005,12 @@
     word.ranks = rankAll(si);
     const saved = store.get(wordKey(n), null);
     if (saved && saved.secret === word.secret) {
-      word.guesses = saved.guesses.map(w => WORDS.byWord.get(String(w).toLowerCase())).filter(i => i != null);
+      word.guesses = saved.guesses.map(w => WORDS.exakt.get(String(w))).filter(i => i != null);
       word.done = !!saved.done; word.won = !!saved.won;
     } else {
       word.guesses = []; word.done = false; word.won = false;
     }
+    word.lastN = 1;
     renderWord();
   }
   function saveWord() {
@@ -1016,9 +1031,9 @@
     const wl = fillPicker($('#word-pick'), word.num, wordKey, filters.word);
     $('#word-prev').disabled = !neighbour(wl, word.num, -1);
     $('#word-next').disabled = !neighbour(wl, word.num, 1);
-    const last = word.guesses[word.guesses.length - 1];
+    const last = word.guesses.slice(-(word.lastN || 1));
     $('#word-list').innerHTML = word.guesses.slice()
-      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, i === last)).join('');
+      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, last.includes(i))).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
     $('#word-give').disabled = word.done;
@@ -1060,33 +1075,46 @@
     store.set('wordStats', st);
   }
 
-  function submitWord(i) {
+  function submitWord(treffer) {
     if (word.done) return;
-    if (word.guesses.includes(i)) { toast('Schon geraten: ' + WORDS.list[i]); return; }
-    word.guesses.push(i);
-    if (word.ranks[i] === 1) { word.done = true; word.won = true; recordWordStats(); }
+    const neu = treffer.filter(i => !word.guesses.includes(i));
+    if (!neu.length) { toast('Schon geraten: ' + WORDS.list[treffer[0]]); return; }
+    word.guesses.push(...neu);
+    word.lastN = neu.length;
+    if (neu.some(i => word.ranks[i] === 1)) { word.done = true; word.won = true; recordWordStats(); }
     saveWord();
     renderWord();
     if (!word.done) $('#word-input').focus();
   }
 
-  // Tolerante Eingabe: Groß/Klein, ß/ss, und der Weg von der gebeugten Form zur
-  // Grundform — Endung abschneiden, Umlaut zurückdrehen (Häuser → Haus).
+  // Ein Wort nachschlagen. Groß geschrieben heißt ausdrücklich das Substantiv
+  // ("Fest"). Klein geschrieben ist mehrdeutig — dann zählen beide Einträge,
+  // denn Raten kostet hier nichts.
+  const UML = { ä: 'a', ö: 'o', ü: 'u', Ä: 'A', Ö: 'O', Ü: 'U' };
   const wordVariants = s => [s, s.replace(/ss/g, 'ß'), s.replace(/ß/g, 'ss'),
-    s.replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u')];
+    s.replace(/[äöüÄÖÜ]/g, m => UML[m])];
+  function lookup(q) {
+    const k = q.toLowerCase();
+    const treffer = WORDS.klein.get(k);
+    if (treffer) return q !== k && WORDS.exakt.has(q) ? [WORDS.exakt.get(q)] : treffer.slice();
+    return WORDS.alias.has(k) ? [WORDS.alias.get(k)] : [];
+  }
+  // Tolerant bei gebeugten Formen: Endung abschneiden, Umlaut zurückdrehen,
+  // ß und ss tauschen (Häuser → Haus).
   function resolveWord(q) {
-    const s = q.trim().toLowerCase().replace(/[^a-zäöüß]/g, '');
-    if (!s) return -1;
-    const stems = [s];
+    const roh = q.trim().replace(/[^a-zäöüßA-ZÄÖÜ]/g, '');
+    if (!roh) return [];
+    const klein = roh.toLowerCase(), stems = [roh];
     for (const suf of ['ern', 'en', 'er', 'es', 'se', 's', 'e', 'n']) {
-      if (s.length > suf.length + 2 && s.endsWith(suf)) stems.push(s.slice(0, -suf.length));
+      if (klein.length > suf.length + 2 && klein.endsWith(suf)) stems.push(roh.slice(0, -suf.length));
     }
     for (const stem of stems) {
       for (const v of wordVariants(stem)) {
-        if (WORDS.byWord.has(v)) return WORDS.byWord.get(v);
+        const t = lookup(v);
+        if (t.length) return t;
       }
     }
-    return -1;
+    return [];
   }
 
   // Auflösen kostet das Rätsel, also zwei Klicks: der erste fragt nach.
@@ -1100,8 +1128,8 @@
   $('#word-give').addEventListener('click', () => {
     if (word.done || !WORDS) return;
     if (!giveArmed) { armGive(true); return; }
-    const si = WORDS.byWord.get(word.secret.toLowerCase());
-    if (si != null && !word.guesses.includes(si)) word.guesses.push(si);
+    const si = WORDS.exakt.get(word.secret);
+    if (si != null && !word.guesses.includes(si)) { word.guesses.push(si); word.lastN = 1; }
     word.done = true; word.won = false;
     saveWord();
     renderWord();
@@ -1120,10 +1148,10 @@
     e.preventDefault();
     if (!WORDS) return;
     const input = $('#word-input');
-    const i = resolveWord(input.value);
-    if (i < 0) { toast('Wort nicht in der Liste'); return; }
+    const treffer = resolveWord(input.value);
+    if (!treffer.length) { toast('Wort nicht in der Liste'); return; }
     input.value = '';
-    submitWord(i);
+    submitWord(treffer);
   });
 
   // =================================================================
