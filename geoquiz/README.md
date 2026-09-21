@@ -45,6 +45,8 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 - `words.js` ist knapp 1,3 MB und wird erst geladen, wenn das Spiel geöffnet wird.
 - Tolerant bei gebeugten Formen: „Häuser“, „Blumen“ und „strasse“ finden Haus,
   Blume und Straße.
+- „Auflösen“ zeigt das Wort (zwei Klicks, der erste fragt nach). Das Rätsel gilt
+  dann als erledigt, aber nicht als gelöst, und zählt nicht in der Statistik.
 
 ## Daten neu erzeugen
 

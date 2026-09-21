@@ -121,6 +121,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .primary:disabled { background: #cacacb; cursor: not-allowed; }
 .ghost { background: var(--bg); color: var(--text); border: 1.5px solid var(--line); border-radius: var(--pill); padding: .8rem 1.5rem; font-weight: 600; font-size: .95rem; transition: border-color .15s; }
 .ghost:hover { border-color: var(--text); }
+.ghost:disabled { color: #c6c6c8; border-color: var(--line); cursor: not-allowed; }
+.ghost.armed { border-color: var(--red); color: var(--red); }
 
 /* Eingabe -------------------------------------------------------------- */
 .guess-form { display: flex; gap: .6rem; margin: .4rem 0 .8rem; }
@@ -316,6 +318,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
   .nav-pick { min-width: 0; padding: .45rem 1.9rem .45rem .9rem; background-position: right .7rem center; }
   .nav-pick:not(.nav-filter) { min-width: 108px; }
 
+  /* Wordplay: drei Elemente nebeneinander lassen dem Eingabefeld zu wenig Platz */
+  #word-form { flex-wrap: wrap; }
+  #word-form .combo { flex-basis: 100%; }
+  #word-form .primary, #word-form .ghost { flex: 1; padding-left: 1rem; padding-right: 1rem; }
+
   /* GeoRankle: Flagge, Name und die 8 Kategorien nach dem Scrollen auf einen Blick */
   .rankle-status { margin-bottom: .8rem; }
   .round-dot { width: 28px; height: 28px; font-size: .65rem; }
@@ -492,6 +499,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
         <input id="word-input" type="search" name="w" placeholder="lädt …" aria-label="Wort" disabled autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
       </div>
       <button type="submit" class="primary" id="word-btn" disabled>Raten</button>
+      <button type="button" class="ghost" id="word-give" disabled>Auflösen</button>
     </form>
 
     <div id="word-list" class="wordlist"></div>
@@ -1452,7 +1460,7 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
   //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
   // =================================================================
   const wordKey = n => 'word.' + n;
-  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, ranks: null };
+  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, won: false, ranks: null };
   let WORDS = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
 
   function initWords(d) {
@@ -1517,9 +1525,9 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     const saved = store.get(wordKey(n), null);
     if (saved && saved.secret === word.secret) {
       word.guesses = saved.guesses.map(w => WORDS.byWord.get(String(w).toLowerCase())).filter(i => i != null);
-      word.done = !!saved.done;
+      word.done = !!saved.done; word.won = !!saved.won;
     } else {
-      word.guesses = []; word.done = false;
+      word.guesses = []; word.done = false; word.won = false;
     }
     renderWord();
   }
@@ -1527,7 +1535,7 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     // Wörter statt Nummern speichern: die Liste kann sich beim nächsten Datenbau ändern.
     store.set(wordKey(word.num), {
       day: word.day, secret: word.secret, guesses: word.guesses.map(i => WORDS.list[i]),
-      done: word.done, won: word.done,
+      done: word.done, won: word.won,
     });
   }
 
@@ -1546,8 +1554,10 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
       .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, i === last)).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
+    $('#word-give').disabled = word.done;
+    armGive(false);
     input.value = '';
-    input.placeholder = word.done ? 'Gelöst' : 'Wort eingeben …';
+    input.placeholder = word.done ? (word.won ? 'Gelöst' : 'Aufgelöst') : 'Wort eingeben …';
     renderWordResult();
   }
 
@@ -1558,7 +1568,7 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     const wPrev = neighbour(wList, word.num, -1), wNext = neighbour(wList, word.num, 1);
     box.innerHTML = `
       <h2>${esc(word.secret)}</h2>
-      <div class="facts"><span>${word.guesses.length} Versuche</span></div>
+      <div class="facts"><span>${word.won ? word.guesses.length + ' Versuche' : 'aufgelöst'}</span></div>
       <div class="actions">
         ${wPrev ? `<button class="ghost" id="btn-word-prev">‹ Rätsel #${wPrev}</button>` : ''}
         ${wNext ? `<button class="ghost" id="btn-word-next">Rätsel #${wNext} ›</button>` : ''}
@@ -1587,7 +1597,7 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     if (word.done) return;
     if (word.guesses.includes(i)) { toast('Schon geraten: ' + WORDS.list[i]); return; }
     word.guesses.push(i);
-    if (word.ranks[i] === 1) { word.done = true; recordWordStats(); }
+    if (word.ranks[i] === 1) { word.done = true; word.won = true; recordWordStats(); }
     saveWord();
     renderWord();
     if (!word.done) $('#word-input').focus();
@@ -1611,6 +1621,25 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     }
     return -1;
   }
+
+  // Auflösen kostet das Rätsel, also zwei Klicks: der erste fragt nach.
+  let giveArmed = false;
+  function armGive(on) {
+    giveArmed = on;
+    const b = $('#word-give');
+    b.textContent = on ? 'Sicher?' : 'Auflösen';
+    b.classList.toggle('armed', on);
+  }
+  $('#word-give').addEventListener('click', () => {
+    if (word.done || !WORDS) return;
+    if (!giveArmed) { armGive(true); return; }
+    const si = WORDS.byWord.get(word.secret.toLowerCase());
+    if (si != null && !word.guesses.includes(si)) word.guesses.push(si);
+    word.done = true; word.won = false;
+    saveWord();
+    renderWord();
+  });
+  $('#word-input').addEventListener('input', () => { if (giveArmed) armGive(false); });
 
   $('#word-prev').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, -1); if (n) loadWord(n); });
   $('#word-next').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, 1); if (n) loadWord(n); });

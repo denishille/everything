@@ -101,6 +101,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .primary:disabled { background: #cacacb; cursor: not-allowed; }
 .ghost { background: var(--bg); color: var(--text); border: 1.5px solid var(--line); border-radius: var(--pill); padding: .8rem 1.5rem; font-weight: 600; font-size: .95rem; transition: border-color .15s; }
 .ghost:hover { border-color: var(--text); }
+.ghost:disabled { color: #c6c6c8; border-color: var(--line); cursor: not-allowed; }
+.ghost.armed { border-color: var(--red); color: var(--red); }
 
 /* Eingabe -------------------------------------------------------------- */
 .guess-form { display: flex; gap: .6rem; margin: .4rem 0 .8rem; }
@@ -295,6 +297,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
   .nav-btn { width: 36px; height: 36px; }
   .nav-pick { min-width: 0; padding: .45rem 1.9rem .45rem .9rem; background-position: right .7rem center; }
   .nav-pick:not(.nav-filter) { min-width: 108px; }
+
+  /* Wordplay: drei Elemente nebeneinander lassen dem Eingabefeld zu wenig Platz */
+  #word-form { flex-wrap: wrap; }
+  #word-form .combo { flex-basis: 100%; }
+  #word-form .primary, #word-form .ghost { flex: 1; padding-left: 1rem; padding-right: 1rem; }
 
   /* GeoRankle: Flagge, Name und die 8 Kategorien nach dem Scrollen auf einen Blick */
   .rankle-status { margin-bottom: .8rem; }

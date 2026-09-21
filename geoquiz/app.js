@@ -927,7 +927,7 @@
   //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
   // =================================================================
   const wordKey = n => 'word.' + n;
-  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, ranks: null };
+  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, won: false, ranks: null };
   let WORDS = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
 
   function initWords(d) {
@@ -992,9 +992,9 @@
     const saved = store.get(wordKey(n), null);
     if (saved && saved.secret === word.secret) {
       word.guesses = saved.guesses.map(w => WORDS.byWord.get(String(w).toLowerCase())).filter(i => i != null);
-      word.done = !!saved.done;
+      word.done = !!saved.done; word.won = !!saved.won;
     } else {
-      word.guesses = []; word.done = false;
+      word.guesses = []; word.done = false; word.won = false;
     }
     renderWord();
   }
@@ -1002,7 +1002,7 @@
     // Wörter statt Nummern speichern: die Liste kann sich beim nächsten Datenbau ändern.
     store.set(wordKey(word.num), {
       day: word.day, secret: word.secret, guesses: word.guesses.map(i => WORDS.list[i]),
-      done: word.done, won: word.done,
+      done: word.done, won: word.won,
     });
   }
 
@@ -1021,8 +1021,10 @@
       .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, i === last)).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
+    $('#word-give').disabled = word.done;
+    armGive(false);
     input.value = '';
-    input.placeholder = word.done ? 'Gelöst' : 'Wort eingeben …';
+    input.placeholder = word.done ? (word.won ? 'Gelöst' : 'Aufgelöst') : 'Wort eingeben …';
     renderWordResult();
   }
 
@@ -1033,7 +1035,7 @@
     const wPrev = neighbour(wList, word.num, -1), wNext = neighbour(wList, word.num, 1);
     box.innerHTML = `
       <h2>${esc(word.secret)}</h2>
-      <div class="facts"><span>${word.guesses.length} Versuche</span></div>
+      <div class="facts"><span>${word.won ? word.guesses.length + ' Versuche' : 'aufgelöst'}</span></div>
       <div class="actions">
         ${wPrev ? `<button class="ghost" id="btn-word-prev">‹ Rätsel #${wPrev}</button>` : ''}
         ${wNext ? `<button class="ghost" id="btn-word-next">Rätsel #${wNext} ›</button>` : ''}
@@ -1062,7 +1064,7 @@
     if (word.done) return;
     if (word.guesses.includes(i)) { toast('Schon geraten: ' + WORDS.list[i]); return; }
     word.guesses.push(i);
-    if (word.ranks[i] === 1) { word.done = true; recordWordStats(); }
+    if (word.ranks[i] === 1) { word.done = true; word.won = true; recordWordStats(); }
     saveWord();
     renderWord();
     if (!word.done) $('#word-input').focus();
@@ -1086,6 +1088,25 @@
     }
     return -1;
   }
+
+  // Auflösen kostet das Rätsel, also zwei Klicks: der erste fragt nach.
+  let giveArmed = false;
+  function armGive(on) {
+    giveArmed = on;
+    const b = $('#word-give');
+    b.textContent = on ? 'Sicher?' : 'Auflösen';
+    b.classList.toggle('armed', on);
+  }
+  $('#word-give').addEventListener('click', () => {
+    if (word.done || !WORDS) return;
+    if (!giveArmed) { armGive(true); return; }
+    const si = WORDS.byWord.get(word.secret.toLowerCase());
+    if (si != null && !word.guesses.includes(si)) word.guesses.push(si);
+    word.done = true; word.won = false;
+    saveWord();
+    renderWord();
+  });
+  $('#word-input').addEventListener('input', () => { if (giveArmed) armGive(false); });
 
   $('#word-prev').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, -1); if (n) loadWord(n); });
   $('#word-next').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, 1); if (n) loadWord(n); });
