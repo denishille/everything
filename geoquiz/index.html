@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Geobrudis</title>
 <meta name="description" content="Vier tägliche Rätsel: Errate das geheime Land, die beste Kategorie, die Flagge — und bei Wordplay das gesuchte Wort.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="apple-touch-icon.png" sizes="180x180">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-title" content="Geobrudis">
+<meta name="application-name" content="Geobrudis">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" media="print" onload="this.media='all'">
@@ -13,7 +22,10 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand">Geobrudis</div>
+  <div class="brand">
+    <img class="brand-logo" src="logo.svg" alt="Geobrudis" onload="this.closest('.brand').classList.add('has-logo')" onerror="this.remove()">
+    <span class="brand-text">Geobrudis</span>
+  </div>
   <nav class="tabs" role="tablist">
     <button class="tab active" data-view="daily" role="tab">GeoFind</button>
     <button class="tab" data-view="rankle" role="tab">GeoRank</button>
@@ -57,9 +69,9 @@
       <span><i class="sq miss"></i> Daneben</span>
     </div>
 
-    <div id="guesses" class="guesses"></div>
-
     <div id="daily-result" class="result" hidden></div>
+
+    <div id="guesses" class="guesses"></div>
   </section>
 
   <!-- ================= GeoRankle ================= -->
@@ -182,6 +194,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="data.js"></script>
+<script src="map.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -152,11 +152,13 @@
   }
   // Filter: alle / gelöst / ungelöst. Liefert die passenden Rätselnummern absteigend.
   const solvedState = (key, n) => { const st = store.get(key(n), null); return !!(st && st.done && st.won); };
+  // "gemacht" = abgeschlossen, egal ob gelöst oder verfehlt
+  const doneState = (key, n) => { const st = store.get(key(n), null); return !!(st && st.done); };
   function puzzleList(key, filter) {
     const max = maxPuzzle();
     const all = Array.from({ length: max }, (_, i) => max - i);
     if (filter === 'solved') return all.filter(n => solvedState(key, n));
-    if (filter === 'open') return all.filter(n => !solvedState(key, n));
+    if (filter === 'open') return all.filter(n => !doneState(key, n));
     return all;
   }
   function fillPicker(sel, current, key, filter) {
@@ -198,10 +200,13 @@
     { key: 'colors', lbl: 'Flagge', wide: true },
     { key: 'languages', lbl: 'Sprachen', wide: true },
   ];
-  function geo(a, b) {
-    // Luftlinie (Haversine) zwischen zwei Koordinaten
+  // Entfernung Grenze zu Grenze aus der vorberechneten Matrix (Natural-Earth-Umrisse),
+  // Notfall: Luftlinie zwischen den Landeskoordinaten
+  const DIST_IDX = D.distOrder ? Object.fromEntries(D.distOrder.map((k, i) => [k, i])) : null;
+  function geo(g, s) {
+    if (DIST_IDX && DIST_IDX[g.iso3] != null && DIST_IDX[s.iso3] != null) return { km: D.dist[DIST_IDX[g.iso3]][DIST_IDX[s.iso3]] };
     const R = 6371, toRad = d => d * Math.PI / 180;
-    const [la1, lo1] = a.map(toRad), [la2, lo2] = b.map(toRad);
+    const [la1, lo1] = g.latlng.map(toRad), [la2, lo2] = s.latlng.map(toRad);
     const h = Math.sin((la2 - la1) / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin((lo2 - lo1) / 2) ** 2;
     return { km: 2 * R * Math.asin(Math.sqrt(h)) };
   }
@@ -221,7 +226,7 @@
   function evalGuess(g, s) {
     const out = {};
     out.continent = { cls: g.continent === s.continent ? 'ok' : 'miss', html: esc(g.continent) };
-    const d = geo(g.latlng, s.latlng);
+    const d = geo(g, s);
     out.distance = g.iso3 === s.iso3
       ? { cls: 'ok', html: '0 km' }
       : { cls: 'miss', html: nf0.format(Math.round(d.km / 10) * 10) + ' km' };
@@ -264,12 +269,138 @@
     $('#daily-prev').disabled = !neighbour(dl, daily.num, -1);
     $('#daily-next').disabled = !neighbour(dl, daily.num, 1);
     const s = daily.secret;
-    $('#guesses').innerHTML = daily.guesses.map(iso => guessRowHtml(BY_ISO[iso], evalGuess(BY_ISO[iso], s))).join('');
+    // Neueste Tipps oben
+    $('#guesses').innerHTML = daily.guesses.slice().reverse().map(iso => guessRowHtml(BY_ISO[iso], evalGuess(BY_ISO[iso], s))).join('');
     const input = $('#guess-input'), btn = $('#guess-btn');
     input.disabled = daily.done; btn.disabled = daily.done;
     input.value = '';
     input.placeholder = daily.done ? (daily.won ? 'Gelöst' : 'Nicht gelöst') : 'Tipp eingeben …';
     renderDailyResult();
+  }
+
+
+  // ---- Kleine Karte fuer das GeoFind-Ergebnis
+  const SH = window.GEO_SHAPES;
+  const SHAPES = SH ? SH.s.map(([code, rings]) => ({
+    code,
+    rings: rings.map(flat => {
+      const pts = []; let x = 0, y = 0;
+      for (let i = 0; i < flat.length; i += 2) {
+        if (i === 0) { x = flat[0]; y = flat[1]; } else { x += flat[i]; y += flat[i + 1]; }
+        pts.push([x / SH.q, y / SH.q]);
+      }
+      return pts;
+    })
+  })) : [];
+  const SHAPE_BY_ISO = {};
+  SHAPES.forEach(sh => { if (sh.code) (SHAPE_BY_ISO[sh.code] = SHAPE_BY_ISO[sh.code] || []).push(sh); });
+
+  const ringBox = ring => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of ring) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    return [x0, y0, x1, y1];
+  };
+
+  function mapSvg(s) {
+    if (!SHAPES.length) return '';
+    const W = 640, H = 380;
+    const own = SHAPE_BY_ISO[s.iso3] || [];
+    const ownRings = own.reduce((a, sh) => a.concat(sh.rings), []);
+    // Anker: groesste eigene Flaeche, sonst der Mittelpunkt aus den Daten
+    let lon0 = s.latlng ? s.latlng[1] : 0, lat0 = s.latlng ? s.latlng[0] : 0;
+    let main = null;
+    for (const r of ownRings) {
+      const b = ringBox(r), size = (b[2] - b[0]) * (b[3] - b[1]) + (b[2] - b[0]) + (b[3] - b[1]);
+      if (!main || size > main.size) main = { b, size };
+    }
+    if (main) { lon0 = (main.b[0] + main.b[2]) / 2; lat0 = (main.b[1] + main.b[3]) / 2; }
+    // Umrisse liegen je Ring auf einer Seite der Datumsgrenze: Ring als Ganzes verschieben
+    const shiftFor = (b, c) => -360 * Math.round(((b[0] + b[2]) / 2 - c) / 360);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const r of ownRings) {
+      const b = ringBox(r), sft = shiftFor(b, lon0);
+      if (Math.abs((b[0] + b[2]) / 2 + sft - lon0) > 55) continue;   // ferne Aussengebiete ignorieren
+      x0 = Math.min(x0, b[0] + sft); x1 = Math.max(x1, b[2] + sft);
+      y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[3]);
+    }
+    if (!isFinite(x0)) { x0 = x1 = lon0; y0 = y1 = lat0; }
+    const latC = Math.max(-74, Math.min(74, (y0 + y1) / 2)), lonC = (x0 + x1) / 2;
+    const k = Math.max(0.3, Math.cos(latC * Math.PI / 180));
+
+    function build(viewW) {
+      viewW = Math.max(22, Math.min(160, viewW));
+      if (viewW * H / W > 125) viewW = 125 * W / H;
+      const scale = W / viewW;
+      const pr = (lon, lat) => [W / 2 + (lon - lonC) * k * scale, H / 2 - (lat - latC) * scale];
+      const land = [], mine = [], labels = [];
+      let myBox = null, context = 0;
+      for (const sh of SHAPES) {
+        const isMine = sh.code === s.iso3;
+        let best = null;
+        for (const r of sh.rings) {
+          const b = ringBox(r), sft = shiftFor(b, lonC);
+          const p0 = pr(b[0] + sft, b[3]), p1 = pr(b[2] + sft, b[1]);
+          if (p1[0] < -4 || p0[0] > W + 4 || p1[1] < -4 || p0[1] > H + 4) continue;
+          let d = '';
+          for (let i = 0; i < r.length; i++) {
+            const p = pr(r[i][0] + sft, r[i][1]);
+            d += (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+          }
+          (isMine ? mine : land).push(d + 'Z');
+          const vx0 = Math.max(p0[0], 0), vx1 = Math.min(p1[0], W), vy0 = Math.max(p0[1], 0), vy1 = Math.min(p1[1], H);
+          const area = (vx1 - vx0) * (vy1 - vy0);
+          if (!best || area > best.area) best = { area, x: (vx0 + vx1) / 2, y: (vy0 + vy1) / 2, w: vx1 - vx0, h: vy1 - vy0 };
+          if (isMine) myBox = !myBox ? { x0: p0[0], y0: p0[1], x1: p1[0], y1: p1[1] }
+            : { x0: Math.min(myBox.x0, p0[0]), y0: Math.min(myBox.y0, p0[1]), x1: Math.max(myBox.x1, p1[0]), y1: Math.max(myBox.y1, p1[1]) };
+        }
+        if (isMine || !sh.code || !best) continue;
+        if (best.area > 4000) context++;
+        const c = BY_ISO[sh.code];
+        if (c && best.w > 86 && best.h > 40) labels.push({ x: best.x, y: best.y, area: best.area, name: c.name });
+      }
+      return { land, mine, labels, myBox, context, pr };
+    }
+
+    // Inselstaaten brauchen mehr Umgebung, damit man sie einordnen kann
+    let viewW = Math.max((x1 - x0) * k, (y1 - y0) * W / H) / 0.4;
+    let view = build(viewW);
+    for (let i = 0; i < 3 && view.context < 2 && viewW < 150; i++) {
+      viewW *= 2.2;
+      view = build(viewW);
+    }
+    const { land, mine, myBox } = view;
+    view.labels.sort((a, b) => b.area - a.area);
+    const shown = [];
+    const mb = view.myBox;
+    for (const l of view.labels) {
+      if (shown.length >= 8) break;
+      // Beschriftung nicht auf das gesuchte Land legen
+      if (mb && l.x > mb.x0 - 10 && l.x < mb.x1 + 10 && l.y > mb.y0 - 10 && l.y < mb.y1 + 10) {
+        const below = mb.y1 + 28, above = mb.y0 - 20;
+        if (below < H - 8) l.y = below; else if (above > 20) l.y = above; else continue;
+      }
+      if (shown.some(o => Math.abs(o.x - l.x) < 120 && Math.abs(o.y - l.y) < 30)) continue;
+      // Am Bildrand nach innen ausrichten, damit der Name nicht abgeschnitten wird
+      const hw = l.name.length * 5.6 + 6;
+      if (l.x - hw < 6) { l.x = 10; l.anchor = 'start'; }
+      else if (l.x + hw > W - 6) { l.x = W - 10; l.anchor = 'end'; }
+      l.y = Math.max(24, Math.min(H - 14, l.y));
+      shown.push(l);
+    }
+    // Sehr kleine Laender zusaetzlich mit einem Ring markieren
+    let marker = '';
+    if (!myBox || Math.max(myBox.x1 - myBox.x0, myBox.y1 - myBox.y0) < 72) {
+      const m = myBox ? [(myBox.x0 + myBox.x1) / 2, (myBox.y0 + myBox.y1) / 2] : view.pr(lon0, lat0);
+      marker = `<g fill="none" stroke-linecap="round"><circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="34" stroke="#111" stroke-width="6"/>`
+             + `<circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="34" stroke="#d9ff3d" stroke-width="3"/></g>`;
+    }
+    return `<div class="geo-map"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Lage von ${esc(s.name)}">
+      <rect width="${W}" height="${H}" fill="#dce8ea"/>
+      <path d="${land.join('')}" fill="#d8d3c8" stroke="#f4f2ea" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="${mine.join('')}" fill="#d9ff3d" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/>
+      ${marker}
+      <g class="map-lbl">${shown.map(l => `<text x="${l.x.toFixed(0)}" y="${l.y.toFixed(0)}"${l.anchor ? ` style="text-anchor:${l.anchor}"` : ''}>${esc(l.name.toUpperCase())}</text>`).join('')}</g>
+    </svg></div>`;
   }
 
   function renderDailyResult() {
@@ -287,6 +418,7 @@
         <span>${fmtCompact(s.stats.pop)} Einwohner</span><span>${nf0.format(s.stats.area)} km²</span>
         ${s.stats.gdppc != null ? `<span>BIP/Kopf ${nf0.format(s.stats.gdppc)} $</span>` : ''}
       </div>
+      ${mapSvg(s)}
       <div class="actions">
         ${dPrev ? `<button class="ghost" id="btn-daily-prev">‹ Rätsel #${dPrev}</button>` : ''}
         ${dNext ? `<button class="ghost" id="btn-daily-next">Rätsel #${dNext} ›</button>` : ''}
@@ -611,22 +743,62 @@
       <div class="rounds-summary">${rankle.picks.map((p, i) => {
         const c = BY_ISO[p.iso3];
         return `<div class="rs"><span class="mini-flag">${flagSvg(c)}</span>
-          <div class="rs-body"><strong>${i + 1}. ${esc(c.name)}</strong>${esc(catName(p.cat))} #${p.rank}${p.pts < 100 ? `<br><span class="muted">Beste: ${esc(catName(p.bestCat))} #${p.bestRank}</span>` : ''}</div>
+          <div class="rs-body"><strong>${i + 1}. ${esc(c.name)}</strong><button class="rank-link" data-cat="${p.cat}" data-iso="${p.iso3}">${esc(catName(p.cat))} #${p.rank}</button>${p.pts < 100 ? `<br><span class="muted">Beste: <button class="rank-link" data-cat="${p.bestCat}" data-iso="${p.iso3}">${esc(catName(p.bestCat))} #${p.bestRank}</button></span>` : ''}</div>
           <span class="rs-pts ${ptsClass(p.pts)}">${p.pts}</span></div>`;
       }).join('')}</div>
+      <div id="rank-panel" class="rank-panel" hidden></div>
       <div class="actions">
         ${rPrev ? `<button class="ghost" id="btn-rankle-prev">‹ Rätsel #${rPrev}</button>` : ''}
         ${rNext ? `<button class="ghost" id="btn-rankle-next">Rätsel #${rNext} ›</button>` : ''}
       </div>`;
     const rp = $('#btn-rankle-prev'); if (rp) rp.addEventListener('click', () => { loadRankle(rPrev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     const rn = $('#btn-rankle-next'); if (rn) rn.addEventListener('click', () => { loadRankle(rNext); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    // Klick auf eine Kategorie blendet das komplette Weltranking ein (nochmal klicken: aus)
+    $$('#rankle-result .rank-link').forEach(b => b.addEventListener('click', () => toggleRankPanel(b.dataset.cat, b.dataset.iso, b)));
+  }
+  function toggleRankPanel(key, iso, btn) {
+    const panel = $('#rank-panel');
+    const cat = CAT_BY_KEY[key];
+    const same = !panel.hidden && panel.dataset.cat === key && panel.dataset.iso === iso;
+    $$('#rankle-result .rank-link').forEach(b => b.classList.remove('open'));
+    if (same || !cat) { panel.hidden = true; panel.innerHTML = ''; return; }
+    btn.classList.add('open');
+    panel.dataset.cat = key; panel.dataset.iso = iso;
+    const inPuzzle = new Set(rankle.countries);
+    const rows = COUNTRIES.filter(c => c.ranks[key] != null).sort((a, b) => a.ranks[key] - b.ranks[key]);
+    panel.innerHTML = `
+      <div class="rank-panel-head"><strong>${esc(cat.name)}</strong><span class="muted">${esc(cat.desc)} · ${rows.length} Länder</span>
+        <button class="icon-btn small" id="rank-panel-close" aria-label="Schließen">✕</button></div>
+      <input class="rank-search" id="rank-search" type="search" placeholder="Land suchen …" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="rank-list" id="rank-list">${rows.map(c => `<div class="rank-row${c.iso3 === iso ? ' me' : inPuzzle.has(c.iso3) ? ' peer' : ''}" data-n="${esc(norm(c.name + ' ' + c.en))}" ${c.iso3 === iso ? 'id="rank-me"' : ''}>
+        <span class="rank-no">#${c.ranks[key]}</span><span class="rank-name">${esc(c.name)}</span><span class="rank-val">${fmtStat(cat, c.stats[key])}</span></div>`).join('')}</div>`;
+    panel.hidden = false;
+    $('#rank-panel-close').addEventListener('click', () => toggleRankPanel(key, iso, btn));
+    const list = $('#rank-list');
+    // Angeklicktes Land in die Mitte der Liste scrollen (nach dem Layout, deshalb im nächsten Frame)
+    const centerMe = () => {
+      const me = $('#rank-me');
+      if (!me) return;
+      list.scrollTop = Math.max(0, me.offsetTop - list.clientHeight / 2 + me.offsetHeight / 2);
+    };
+    requestAnimationFrame(() => { centerMe(); setTimeout(centerMe, 120); });
+    // Suche: filtert die Liste, leeres Feld zeigt wieder alles und zentriert das Land
+    $('#rank-search').addEventListener('input', e => {
+      const q = norm(e.target.value);
+      $$('.rank-row', list).forEach(r => { r.hidden = q ? !r.dataset.n.includes(q) : false; });
+      if (!q) centerMe(); else list.scrollTop = 0;
+    });
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // =================================================================
   //  GEOFLAG – 10 Flaggen, je vier Länder zur Auswahl
   // =================================================================
   const FLAG_ROUNDS = 10;
-  const FLAG_POOL = COUNTRIES.filter(c => c.stats.pop >= MIN_POP);
+  const FLAG_OPTIONS = 6;
+  // Flaggen, auf denen der Landesname steht (Wappen/Schriftband), werden nicht abgefragt
+  const FLAG_EXCLUDE = new Set(['DOM', 'SLV', 'NIC', 'PRY', 'BOL', 'EGY', 'BRN']);
+  const FLAG_POOL = COUNTRIES.filter(c => c.stats.pop >= MIN_POP && !FLAG_EXCLUDE.has(c.iso3));
   const flagKey = n => 'flag.' + n;
   const flag = { num: 0, day: 0, countries: [], options: [], answers: [], round: 0, locked: false };
 
@@ -638,7 +810,7 @@
       const others = COUNTRIES.filter(o => o.iso3 !== c.iso3);
       const score = o => (o.continent === c.continent ? 2 : 0) + (o.colors.filter(x => c.colors.includes(x)).length >= Math.min(2, c.colors.length) ? 1 : 0);
       const ranked = shuffled(others, rng).sort((a, b) => score(b) - score(a));
-      return shuffled([c.iso3, ...ranked.slice(0, 3).map(o => o.iso3)], rng);
+      return shuffled([c.iso3, ...ranked.slice(0, FLAG_OPTIONS - 1).map(o => o.iso3)], rng);
     });
     return { countries: picked.map(c => c.iso3), options };
   }
@@ -756,7 +928,7 @@
   // =================================================================
   const wordKey = n => 'word.' + n;
   const word = { num: 0, day: 0, secret: '', guesses: [], done: false, ranks: null };
-  let W = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
+  let WORDS = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
 
   function initWords(d) {
     const list = d.woerter.split(','), dim = d.dim, n = list.length;
@@ -773,14 +945,14 @@
     }
     const byWord = new Map();
     list.forEach((w, i) => { const k = w.toLowerCase(); if (!byWord.has(k)) byWord.set(k, i); });
-    W = { list, byWord, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
+    WORDS = { list, byWord, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
   }
 
   // words.js ist groß und wird nur für dieses Spiel gebraucht: erst beim Öffnen laden.
   // In der Einzeldatei-Fassung steckt es schon im Dokument.
   let wordLoading = false;
   function withWords(then) {
-    if (W) return then();
+    if (WORDS) return then();
     if (window.WORD_DATA) { initWords(window.WORD_DATA); return then(); }
     if (wordLoading) return;
     wordLoading = true;
@@ -796,7 +968,7 @@
 
   // Rang jedes Worts zum gesuchten: 1 = das Wort selbst, N = am weitesten weg.
   function rankAll(si) {
-    const { vec, dim, n } = W;
+    const { vec, dim, n } = WORDS;
     const sim = new Float32Array(n), idx = new Int32Array(n), p = si * dim;
     for (let i = 0; i < n; i++) {
       const o = i * dim;
@@ -814,12 +986,12 @@
     n = clampPuzzle(n);
     word.num = n; word.day = n - 1;
     store.set('wordLast', n);
-    const si = W.order[((word.day % W.order.length) + W.order.length) % W.order.length];
-    word.secret = W.list[si];
+    const si = WORDS.order[((word.day % WORDS.order.length) + WORDS.order.length) % WORDS.order.length];
+    word.secret = WORDS.list[si];
     word.ranks = rankAll(si);
     const saved = store.get(wordKey(n), null);
     if (saved && saved.secret === word.secret) {
-      word.guesses = saved.guesses.map(w => W.byWord.get(String(w).toLowerCase())).filter(i => i != null);
+      word.guesses = saved.guesses.map(w => WORDS.byWord.get(String(w).toLowerCase())).filter(i => i != null);
       word.done = !!saved.done;
     } else {
       word.guesses = []; word.done = false;
@@ -829,15 +1001,15 @@
   function saveWord() {
     // Wörter statt Nummern speichern: die Liste kann sich beim nächsten Datenbau ändern.
     store.set(wordKey(word.num), {
-      day: word.day, secret: word.secret, guesses: word.guesses.map(i => W.list[i]),
+      day: word.day, secret: word.secret, guesses: word.guesses.map(i => WORDS.list[i]),
       done: word.done, won: word.done,
     });
   }
 
   // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
-  const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(W.n)));
+  const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.n)));
   const wordRowHtml = i => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
-    + `<span>${esc(W.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
+    + `<span>${esc(WORDS.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
 
   function renderWord() {
     $('#word-num').textContent = 'Rätsel #' + word.num;
@@ -890,7 +1062,7 @@
 
   function submitWord(i) {
     if (word.done) return;
-    if (word.guesses.includes(i)) { toast('Schon geraten: ' + W.list[i]); return; }
+    if (word.guesses.includes(i)) { toast('Schon geraten: ' + WORDS.list[i]); return; }
     word.guesses.push(i);
     if (word.ranks[i] === 1) { word.done = true; recordWordStats(); }
     saveWord();
@@ -911,7 +1083,7 @@
     }
     for (const stem of stems) {
       for (const v of wordVariants(stem)) {
-        if (W.byWord.has(v)) return W.byWord.get(v);
+        if (WORDS.byWord.has(v)) return WORDS.byWord.get(v);
       }
     }
     return -1;
@@ -927,7 +1099,7 @@
   });
   $('#word-form').addEventListener('submit', e => {
     e.preventDefault();
-    if (!W) return;
+    if (!WORDS) return;
     const input = $('#word-input');
     const i = resolveWord(input.value);
     if (i < 0) { toast('Wort nicht in der Liste'); return; }
@@ -1000,7 +1172,7 @@
   setInterval(() => {
     if (maxPuzzle() !== knownMax) {
       knownMax = maxPuzzle();
-      renderDaily(); renderRankle(); renderFlag(); if (W && word.num) renderWord();
+      renderDaily(); renderRankle(); renderFlag(); if (WORDS && word.num) renderWord();
       toast('Ein neuer Tag, ein neues Rätsel #' + knownMax + '!');
     }
   }, 30000);

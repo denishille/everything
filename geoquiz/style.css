@@ -51,7 +51,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   background: var(--bg); border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
 }
-.brand { font-weight: 900; font-size: 1.25rem; letter-spacing: -.04em; text-transform: uppercase; white-space: nowrap; font-variation-settings: "wdth" 88; }
+.brand { display: flex; align-items: center; font-weight: 900; font-size: 1.25rem; letter-spacing: -.04em; text-transform: uppercase; white-space: nowrap; font-variation-settings: "wdth" 88; }
+/* Liegt geoquiz/logo.svg (oder .png/.webp) vor, ersetzt es den Schriftzug */
+.brand-logo { display: none; height: 30px; width: auto; max-width: 180px; }
+.brand.has-logo .brand-logo { display: block; }
+.brand.has-logo .brand-text { display: none; }
 .tabs { display: flex; gap: 1.6rem; margin: 0 auto; }
 .tab {
   border: 0; background: none; padding: .4rem 0; font-weight: 600; font-size: .95rem; white-space: nowrap;
@@ -62,6 +66,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .top-actions { display: flex; gap: .4rem; }
 .icon-btn { border: 0; background: var(--surface); color: var(--text); border-radius: 50%; width: 38px; height: 38px; font-size: 1rem; display: grid; place-items: center; transition: background .15s; }
 .icon-btn:hover { background: var(--surface2); }
+
+/* Als Homescreen-App (iOS standalone) Platz für Statusleiste und Home-Indikator */
+@supports (padding: env(safe-area-inset-top)) {
+  .top { padding-top: env(safe-area-inset-top); height: calc(60px + env(safe-area-inset-top)); }
+  main { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
+}
 
 main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem; }
 .view { display: none; }
@@ -141,6 +151,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 }
 
 /* Ergebnis ------------------------------------------------------------ */
+#daily-result { margin: 0 0 1.8rem; }
 .result { margin-top: 2.4rem; padding: 2.4rem clamp(1rem, 4vw, 3rem); background: var(--surface); border-radius: 24px; animation: rise .35s cubic-bezier(.2,.7,.2,1); }
 .result .big-flag { width: 200px; height: 150px; border-radius: 6px; overflow: hidden; margin: 0 auto 1.4rem; box-shadow: 0 16px 40px rgba(0,0,0,.14); }
 .result .big-flag svg { width: 100%; height: 100%; display: block; }
@@ -209,6 +220,26 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .rs .rs-pts { margin-left: auto; font-weight: 900; font-size: 1.3rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .rs-pts.g { color: var(--text); } .rs-pts.y { color: var(--volt-deep); } .rs-pts.r { color: var(--red); }
 
+/* Weltranking-Panel im GeoRank-Ergebnis --------------------------------- */
+.rank-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; cursor: pointer; text-align: left; }
+.rank-link:hover, .rank-link.open { text-decoration-color: var(--text); color: var(--text); }
+.rank-link.open { font-weight: 700; }
+.rank-panel { background: var(--bg); border-radius: var(--r); padding: .9rem 1rem; margin: .2rem 0 1rem; animation: rise .25s cubic-bezier(.2,.7,.2,1); }
+.rank-panel-head { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.rank-panel-head strong { font-size: 1.05rem; }
+.rank-panel-head .muted { font-size: .8rem; }
+.rank-panel-head .icon-btn.small { margin-left: auto; width: 32px; height: 32px; font-size: .9rem; }
+.rank-search { width: 100%; font-size: 16px; padding: .55rem .9rem; margin-bottom: .5rem; border-radius: var(--pill); border: 1.5px solid transparent; background: var(--surface); color: var(--text); outline: none; }
+.rank-search:focus { background: var(--bg); border-color: var(--text); }
+.rank-search::-webkit-search-decoration, .rank-search::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.rank-list { position: relative; max-height: 360px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.rank-row { display: grid; grid-template-columns: 3.4rem 1fr auto; gap: .6rem; padding: .35rem .7rem; border-bottom: 1px solid var(--line); align-items: center; }
+.rank-row:last-child { border-bottom: 0; }
+.rank-no { font-weight: 800; color: var(--muted); }
+.rank-val { color: var(--muted); white-space: nowrap; }
+.rank-row.peer { background: var(--surface); }
+.rank-row.me { background: var(--text); color: #fff; font-weight: 700; }
+.rank-row.me .rank-no, .rank-row.me .rank-val { color: #fff; }
 /* Wordplay ------------------------------------------------------------ */
 .wordlist { display: flex; flex-direction: column; gap: .3rem; }
 .wordlist.pin { margin-bottom: 1.4rem; }
@@ -237,11 +268,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .fr .fr-mark { margin-left: auto; font-weight: 900; font-size: 1.2rem; }
 .fr-mark.g { color: var(--text); } .fr-mark.r { color: var(--red); }
 @media (max-width: 600px) {
-  .flag-quiz { flex-direction: row; align-items: center; gap: .9rem; }
-  .flag-quiz .flag-wrap { width: 46%; max-width: 46%; }
-  .flag-quiz h2 { font-size: 1.5rem; }
-  .answers { grid-template-columns: 1fr; gap: .45rem; }
-  .ans { padding: .8rem .9rem; font-size: .95rem; }
+  .flag-card.flag-quiz { flex-direction: row; align-items: center; gap: .9rem; }
+  .flag-card.flag-quiz .flag-wrap { width: 46%; max-width: 46%; }
+  .flag-card.flag-quiz h2 { font-size: 1.5rem; }
+  .answers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+  .ans { padding: .7rem .75rem; font-size: .88rem; line-height: 1.25; overflow-wrap: anywhere; hyphens: auto; }
 }
 
 /* Modals / Toast / Footer -------------------------------------------- */
@@ -253,8 +284,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: .7rem 1.2rem; border-radius: var(--pill); font-weight: 600; z-index: 60; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
 
 @media (max-width: 600px) {
-  .top { height: auto; flex-wrap: wrap; gap: .6rem 1rem; padding: .7rem 1rem; }
+  .top { height: auto; flex-wrap: wrap; gap: .6rem 1rem; padding: calc(.7rem + env(safe-area-inset-top, 0px)) 1rem .7rem; }
   .brand { order: 1; }
+  .brand-logo { height: 26px; max-width: 150px; }
   .top-actions { order: 2; margin-left: auto; }
   .tabs { order: 3; width: 100%; margin: 0; gap: 1.4rem; }
   .view-head { padding-top: 1.6rem; }
@@ -276,4 +308,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
   .cat .cn { font-size: .88rem; line-height: 1.25; }
   .cat .cd { display: none; }
 }
+
+/* Kleine Karte im GeoFind-Ergebnis */
+.geo-map { margin: 1.4rem auto .4rem; max-width: 700px; border-radius: 18px; overflow: hidden; background: #dce8ea; }
+.geo-map svg { display: block; width: 100%; height: auto; }
+.map-lbl text {
+  font-family: inherit; font-size: 19px; font-weight: 700; letter-spacing: .04em;
+  fill: #7a7367; text-anchor: middle; paint-order: stroke; stroke: #f2efe6; stroke-width: 6px; stroke-linejoin: round;
 }
