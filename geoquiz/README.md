@@ -1,8 +1,8 @@
 # GeoQuiz – Land des Tages & GeoRankle
 
-Zwei tägliche Geografie-Rätsel als reine Browser-App (HTML/CSS/JS, kein Build,
-kein Server, keine Abhängigkeiten). Nachbau von trivi.gg „Daily Country“ und
-Geotrivia „GeoRankle“.
+Vier tägliche Rätsel als reine Browser-App (HTML/CSS/JS, kein Build, kein
+Server, keine Abhängigkeiten). Nachbau von trivi.gg „Daily Country“, Geotrivia
+„GeoRankle“ und contexto.me.
 
 ## Spielen
 
@@ -34,6 +34,18 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   bevorzugt vom selben Kontinent mit ähnlichen Flaggenfarben.
 - Sofortige Rückmeldung, Ergebnis mit allen zehn Flaggen, Statistik.
 
+## Wordplay
+
+- Nachbau von contexto.me: ein gesuchtes Wort, beliebig viele Versuche.
+- Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 9848 das am weitesten
+  entfernte; der Balken zeigt den Rang logarithmisch.
+- Die Reihenfolge kommt aus der Bedeutungsnähe zweier Wörter (Kosinus zwischen
+  ihren Wortvektoren). Gerechnet wird sie im Browser, beim Öffnen des Rätsels —
+  deshalb kostet kein weiteres Rätsel zusätzliche Daten.
+- `words.js` ist knapp 1,3 MB und wird erst geladen, wenn das Spiel geöffnet wird.
+- Tolerant bei gebeugten Formen: „Häuser“, „Blumen“ und „strasse“ finden Haus,
+  Blume und Straße.
+
 ## Daten neu erzeugen
 
 `data.js` (196 Länder: UN-Mitglieder plus Taiwan und Kosovo) wird aus offenen
@@ -56,6 +68,28 @@ python3 tools/flag_colors.py --countries /tmp/countries.json \
 
 python3 tools/build_data.py --countries /tmp/countries.json --factbook /tmp/factbook \
     --flags /tmp/flag-icons/flags/4x3 --colors tools/flagcolors.json --out data.js
+```
+
+`words.js` (9848 Wörter mit Vektoren, davon 1856 als Rätselwort) braucht
+`pip install spacy numpy` und diese Quellen:
+
+- [explosion/spacy-models](https://github.com/explosion/spacy-models) –
+  `de_core_news_md`, 20.000 Wortvektoren mit 300 Dimensionen
+- [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords) –
+  Worthäufigkeit, bestimmt Auswahl und Reihenfolge
+- [gambolputty/german-nouns](https://github.com/gambolputty/german-nouns) –
+  Substantive: Großschreibung und der Vorrat an Rätselwörtern
+- [michmech/lemmatization-lists](https://github.com/michmech/lemmatization-lists) –
+  Grundformen; gebeugte Formen fliegen raus
+
+```bash
+curl -LO https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.7.0/de_core_news_md-3.7.0-py3-none-any.whl
+curl -o /tmp/de_50k.txt https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt
+curl -o /tmp/nouns.csv https://raw.githubusercontent.com/gambolputty/german-nouns/main/german_nouns/nouns.csv
+curl -o /tmp/lemmatization-de.txt https://raw.githubusercontent.com/michmech/lemmatization-lists/master/lemmatization-de.txt
+
+python3 tools/build_words.py --model de_core_news_md-3.7.0-py3-none-any.whl \
+    --freq /tmp/de_50k.txt --nouns /tmp/nouns.csv --lemmas /tmp/lemmatization-de.txt --out words.js
 ```
 
 ## Hosten (Cloudflare Pages)

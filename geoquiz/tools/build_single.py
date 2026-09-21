@@ -14,7 +14,9 @@ read = lambda n: open(os.path.join(here, n), encoding="utf-8").read()
 html = read("index.html")
 html = html.replace('<link rel="stylesheet" href="style.css">', "<style>\n" + read("style.css") + "\n</style>")
 html = html.replace('<script src="data.js"></script>', "<script>\n" + read("data.js") + "\n</script>")
-html = html.replace('<script src="app.js"></script>', "<script>\n" + read("app.js") + "\n</script>")
+# words.js lädt die Seite sonst erst beim Öffnen von Wordplay nach; hier muss es mit rein.
+html = html.replace('<script src="app.js"></script>',
+                    "<script>\n" + read("words.js") + "\n</script>\n<script>\n" + read("app.js") + "\n</script>")
 assert 'href="style.css"' not in html and 'src="data.js"' not in html and 'src="app.js"' not in html
 
 out = os.path.join(here, "geoquiz.html")

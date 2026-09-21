@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Geobrudis</title>
-<meta name="description" content="Drei tägliche Geografie-Rätsel: Errate das geheime Land in 5 Versuchen und finde bei GeoRank die beste Kategorie jedes Landes.">
+<meta name="description" content="Vier tägliche Rätsel: Errate das geheime Land, die beste Kategorie, die Flagge — und bei Wordplay das gesuchte Wort.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,7 @@
     <button class="tab active" data-view="daily" role="tab">GeoFind</button>
     <button class="tab" data-view="rankle" role="tab">GeoRank</button>
     <button class="tab" data-view="flag" role="tab">GeoFlag</button>
+    <button class="tab" data-view="word" role="tab">Wordplay</button>
   </nav>
   <div class="top-actions">
     <button class="icon-btn" id="btn-stats" title="Statistik" aria-label="Statistik"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></button>
@@ -136,6 +137,37 @@
     </div>
 
     <div id="flag-result" class="result" hidden></div>
+  </section>
+
+  <!-- ================= Wordplay ================= -->
+  <section id="view-word" class="view">
+    <div class="view-head">
+      <div>
+        <h1 class="display"><span id="word-num" class="num"></span>Wordplay</h1>
+      </div>
+      <div class="nav" aria-label="Rätsel-Navigation">
+        <select class="nav-pick nav-filter" id="word-filter" aria-label="Filter">
+          <option value="all">Alle</option>
+          <option value="solved">Gelöst</option>
+          <option value="open">Ungelöst</option>
+        </select>
+        <button class="nav-btn" id="word-prev" aria-label="Vorheriges Rätsel">‹</button>
+        <select class="nav-pick" id="word-pick" aria-label="Rätsel wählen"></select>
+        <button class="nav-btn" id="word-next" aria-label="Nächstes Rätsel">›</button>
+      </div>
+    </div>
+
+    <form id="word-form" class="guess-form" autocomplete="off" role="search">
+      <div class="combo">
+        <input id="word-input" type="search" name="w" placeholder="lädt …" aria-label="Wort" disabled autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
+      </div>
+      <button type="submit" class="primary" id="word-btn" disabled>Raten</button>
+    </form>
+
+    <div id="word-latest" class="wordlist pin" hidden></div>
+    <div id="word-list" class="wordlist"></div>
+
+    <div id="word-result" class="result" hidden></div>
   </section>
 </main>
 

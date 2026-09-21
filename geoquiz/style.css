@@ -95,13 +95,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 /* Eingabe -------------------------------------------------------------- */
 .guess-form { display: flex; gap: .6rem; margin: .4rem 0 .8rem; }
 .combo { position: relative; flex: 1; }
-#guess-input { width: 100%; font-size: 16px; padding: .9rem 1.4rem; border-radius: var(--pill); border: 1.5px solid transparent; background: var(--surface); color: var(--text); outline: none; transition: background .15s, border-color .15s; }
-#guess-input::placeholder { color: var(--muted); }
-#guess-input:hover { background: var(--surface2); }
-#guess-input:focus { background: var(--bg); border-color: var(--text); }
-#guess-input:disabled { background: var(--surface); color: var(--muted); }
-#guess-input::-webkit-search-decoration, #guess-input::-webkit-search-cancel-button, #guess-input::-webkit-search-results-button { -webkit-appearance: none; display: none; }
-#guess-input:-webkit-autofill, #guess-input:-webkit-autofill:hover, #guess-input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); }
+#guess-input, #word-input { width: 100%; font-size: 16px; padding: .9rem 1.4rem; border-radius: var(--pill); border: 1.5px solid transparent; background: var(--surface); color: var(--text); outline: none; transition: background .15s, border-color .15s; }
+#guess-input::placeholder, #word-input::placeholder { color: var(--muted); }
+#guess-input:hover, #word-input:hover { background: var(--surface2); }
+#guess-input:focus, #word-input:focus { background: var(--bg); border-color: var(--text); }
+#guess-input:disabled, #word-input:disabled { background: var(--surface); color: var(--muted); }
+#guess-input::-webkit-search-decoration, #guess-input::-webkit-search-cancel-button, #guess-input::-webkit-search-results-button, #word-input::-webkit-search-decoration, #word-input::-webkit-search-cancel-button, #word-input::-webkit-search-results-button { -webkit-appearance: none; display: none; }
+#guess-input:-webkit-autofill, #guess-input:-webkit-autofill:hover, #guess-input:-webkit-autofill:focus, #word-input:-webkit-autofill, #word-input:-webkit-autofill:hover, #word-input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); }
 .suggest { position: absolute; left: .6rem; right: .6rem; top: calc(100% + 6px); z-index: 20; list-style: none; margin: 0; padding: .4rem; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.12); max-height: 300px; overflow-y: auto; }
 .suggest li { padding: .6rem .9rem; border-radius: 10px; display: flex; gap: .6rem; align-items: center; cursor: pointer; font-weight: 500; }
 .suggest li.sel, .suggest li:hover { background: var(--surface); }
@@ -208,6 +208,17 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .rs .rs-body strong { display: block; color: var(--text); }
 .rs .rs-pts { margin-left: auto; font-weight: 900; font-size: 1.3rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .rs-pts.g { color: var(--text); } .rs-pts.y { color: var(--volt-deep); } .rs-pts.r { color: var(--red); }
+
+/* Wordplay ------------------------------------------------------------ */
+.wordlist { display: flex; flex-direction: column; gap: .3rem; }
+.wordlist.pin { margin-bottom: 1.4rem; }
+.wordlist.pin .wrow { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--line); }
+.wrow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.05rem; border-radius: var(--r); background: var(--surface); overflow: hidden; font-weight: 700; animation: rise .3s cubic-bezier(.2,.7,.2,1); }
+.wrow::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p); background: var(--volt); }
+.wrow span { position: relative; overflow-wrap: anywhere; }
+.wrow .wr { font-variant-numeric: tabular-nums; }
+.wrow.hit { background: var(--text); color: #fff; }
+.wrow.hit::before { display: none; }
 
 /* GeoFlag ------------------------------------------------------------- */
 .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }

@@ -112,6 +112,7 @@
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
     $$('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
     try { location.hash = v; } catch (e) { /* egal */ }
+    if (v === 'word') openWord();
   }
   $$('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
   $('#btn-stats').addEventListener('click', () => { renderStats(); openModal('#modal-stats'); });
@@ -168,8 +169,12 @@
   const neighbour = (list, current, dir) => dir < 0
     ? list.filter(n => n < current)[0]
     : list.filter(n => n > current).slice(-1)[0];
-  const filters = { daily: store.get('dailyFilter', 'all'), rankle: store.get('rankleFilter', 'all'), flag: store.get('flagFilter', 'all') };
-  $('#daily-filter').value = filters.daily; $('#rankle-filter').value = filters.rankle; $('#flag-filter').value = filters.flag;
+  const filters = {
+    daily: store.get('dailyFilter', 'all'), rankle: store.get('rankleFilter', 'all'),
+    flag: store.get('flagFilter', 'all'), word: store.get('wordFilter', 'all'),
+  };
+  $('#daily-filter').value = filters.daily; $('#rankle-filter').value = filters.rankle;
+  $('#flag-filter').value = filters.flag; $('#word-filter').value = filters.word;
 
   $('#daily-prev').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, -1); if (n) loadDaily(n); });
   $('#daily-next').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, 1); if (n) loadDaily(n); });
@@ -747,6 +752,190 @@
   }
 
   // =================================================================
+  //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
+  // =================================================================
+  const wordKey = n => 'word.' + n;
+  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, ranks: null };
+  let W = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
+
+  function initWords(d) {
+    const list = d.woerter.split(','), dim = d.dim, n = list.length;
+    const bin = atob(d.vek), vec = new Float32Array(n * dim);
+    for (let i = 0; i < n; i++) {
+      const o = i * dim;
+      let len = 0;
+      for (let k = 0; k < dim; k++) {
+        const v = (bin.charCodeAt(o + k) << 24 >> 24) * d.skala[k];   // int8 zurückskalieren
+        vec[o + k] = v; len += v * v;
+      }
+      len = 1 / (Math.sqrt(len) || 1);
+      for (let k = 0; k < dim; k++) vec[o + k] *= len;                // normiert: Skalarprodukt = Kosinus
+    }
+    const byWord = new Map();
+    list.forEach((w, i) => { const k = w.toLowerCase(); if (!byWord.has(k)) byWord.set(k, i); });
+    W = { list, byWord, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
+  }
+
+  // words.js ist groß und wird nur für dieses Spiel gebraucht: erst beim Öffnen laden.
+  // In der Einzeldatei-Fassung steckt es schon im Dokument.
+  let wordLoading = false;
+  function withWords(then) {
+    if (W) return then();
+    if (window.WORD_DATA) { initWords(window.WORD_DATA); return then(); }
+    if (wordLoading) return;
+    wordLoading = true;
+    const s = document.createElement('script');
+    s.src = 'words.js';
+    s.onload = () => { wordLoading = false; initWords(window.WORD_DATA); then(); };
+    s.onerror = () => { wordLoading = false; toast('Wörter konnten nicht geladen werden'); };
+    document.head.appendChild(s);
+  }
+  function openWord() {
+    withWords(() => { if (!word.num) loadWord(store.get('wordLast', null) || undefined); });
+  }
+
+  // Rang jedes Worts zum gesuchten: 1 = das Wort selbst, N = am weitesten weg.
+  function rankAll(si) {
+    const { vec, dim, n } = W;
+    const sim = new Float32Array(n), idx = new Int32Array(n), p = si * dim;
+    for (let i = 0; i < n; i++) {
+      const o = i * dim;
+      let s = 0;
+      for (let k = 0; k < dim; k++) s += vec[o + k] * vec[p + k];
+      sim[i] = s; idx[i] = i;
+    }
+    idx.sort((a, b) => sim[b] - sim[a]);
+    const rank = new Int32Array(n);
+    for (let r = 0; r < n; r++) rank[idx[r]] = r + 1;
+    return rank;
+  }
+
+  function loadWord(n) {
+    n = clampPuzzle(n);
+    word.num = n; word.day = n - 1;
+    store.set('wordLast', n);
+    const si = W.order[((word.day % W.order.length) + W.order.length) % W.order.length];
+    word.secret = W.list[si];
+    word.ranks = rankAll(si);
+    const saved = store.get(wordKey(n), null);
+    if (saved && saved.secret === word.secret) {
+      word.guesses = saved.guesses.map(w => W.byWord.get(String(w).toLowerCase())).filter(i => i != null);
+      word.done = !!saved.done;
+    } else {
+      word.guesses = []; word.done = false;
+    }
+    renderWord();
+  }
+  function saveWord() {
+    // Wörter statt Nummern speichern: die Liste kann sich beim nächsten Datenbau ändern.
+    store.set(wordKey(word.num), {
+      day: word.day, secret: word.secret, guesses: word.guesses.map(i => W.list[i]),
+      done: word.done, won: word.done,
+    });
+  }
+
+  // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
+  const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(W.n)));
+  const wordRowHtml = i => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
+    + `<span>${esc(W.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
+
+  function renderWord() {
+    $('#word-num').textContent = 'Rätsel #' + word.num;
+    const wl = fillPicker($('#word-pick'), word.num, wordKey, filters.word);
+    $('#word-prev').disabled = !neighbour(wl, word.num, -1);
+    $('#word-next').disabled = !neighbour(wl, word.num, 1);
+    $('#word-list').innerHTML = word.guesses.slice()
+      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(wordRowHtml).join('');
+    const latest = $('#word-latest'), last = word.guesses[word.guesses.length - 1];
+    if (last == null || word.done) { latest.hidden = true; }
+    else { latest.innerHTML = wordRowHtml(last); latest.hidden = false; }
+    const input = $('#word-input');
+    input.disabled = word.done; $('#word-btn').disabled = word.done;
+    input.value = '';
+    input.placeholder = word.done ? 'Gelöst' : 'Wort eingeben …';
+    renderWordResult();
+  }
+
+  function renderWordResult() {
+    const box = $('#word-result');
+    if (!word.done) { box.hidden = true; return; }
+    const wList = puzzleList(wordKey, filters.word);
+    const wPrev = neighbour(wList, word.num, -1), wNext = neighbour(wList, word.num, 1);
+    box.innerHTML = `
+      <h2>${esc(word.secret)}</h2>
+      <div class="facts"><span>${word.guesses.length} Versuche</span></div>
+      <div class="actions">
+        ${wPrev ? `<button class="ghost" id="btn-word-prev">‹ Rätsel #${wPrev}</button>` : ''}
+        ${wNext ? `<button class="ghost" id="btn-word-next">Rätsel #${wNext} ›</button>` : ''}
+      </div>`;
+    box.hidden = false;
+    const bp = $('#btn-word-prev'); if (bp) bp.addEventListener('click', () => { loadWord(wPrev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    const bn = $('#btn-word-next'); if (bn) bn.addEventListener('click', () => { loadWord(wNext); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  }
+
+  function recordWordStats() {
+    const st = store.get('wordStats', { games: 0, sum: 0, best: 0, lastDay: null, streak: 0, maxStreak: 0, done: {} });
+    st.done = st.done || {};
+    if (st.done[word.num]) return;
+    st.done[word.num] = 1;
+    const t = word.guesses.length;
+    st.games++; st.sum += t; st.best = st.best ? Math.min(st.best, t) : t;
+    if (word.num === maxPuzzle() && st.lastDay !== word.day) {
+      st.streak = st.lastDay === word.day - 1 ? st.streak + 1 : 1;
+      st.maxStreak = Math.max(st.maxStreak, st.streak);
+      st.lastDay = word.day;
+    }
+    store.set('wordStats', st);
+  }
+
+  function submitWord(i) {
+    if (word.done) return;
+    if (word.guesses.includes(i)) { toast('Schon geraten: ' + W.list[i]); return; }
+    word.guesses.push(i);
+    if (word.ranks[i] === 1) { word.done = true; recordWordStats(); }
+    saveWord();
+    renderWord();
+    if (!word.done) $('#word-input').focus();
+  }
+
+  // Tolerante Eingabe: Groß/Klein, ß/ss, und der Weg von der gebeugten Form zur
+  // Grundform — Endung abschneiden, Umlaut zurückdrehen (Häuser → Haus).
+  const wordVariants = s => [s, s.replace(/ss/g, 'ß'), s.replace(/ß/g, 'ss'),
+    s.replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u')];
+  function resolveWord(q) {
+    const s = q.trim().toLowerCase().replace(/[^a-zäöüß]/g, '');
+    if (!s) return -1;
+    const stems = [s];
+    for (const suf of ['ern', 'en', 'er', 'es', 'se', 's', 'e', 'n']) {
+      if (s.length > suf.length + 2 && s.endsWith(suf)) stems.push(s.slice(0, -suf.length));
+    }
+    for (const stem of stems) {
+      for (const v of wordVariants(stem)) {
+        if (W.byWord.has(v)) return W.byWord.get(v);
+      }
+    }
+    return -1;
+  }
+
+  $('#word-prev').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, -1); if (n) loadWord(n); });
+  $('#word-next').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, 1); if (n) loadWord(n); });
+  $('#word-pick').addEventListener('change', e => loadWord(+e.target.value));
+  $('#word-filter').addEventListener('change', e => {
+    filters.word = e.target.value; store.set('wordFilter', filters.word);
+    const list = puzzleList(wordKey, filters.word);
+    if (list.length && !list.includes(word.num)) loadWord(list[0]); else renderWord();
+  });
+  $('#word-form').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!W) return;
+    const input = $('#word-input');
+    const i = resolveWord(input.value);
+    if (i < 0) { toast('Wort nicht in der Liste'); return; }
+    input.value = '';
+    submitWord(i);
+  });
+
+  // =================================================================
   //  Statistik
   // =================================================================
   function renderStats() {
@@ -764,6 +953,16 @@
         </div>
         <h2>Verteilung der Versuche</h2>
         <div class="dist">${[1, 2, 3, 4, 5].map(n => `<span>${n}</span><div class="bar${n === hl ? ' hl' : ''}" style="width:${Math.max(7, 100 * (st.dist[n] || 0) / maxD)}%">${st.dist[n] || 0}</div>`).join('')}</div>`;
+    } else if (view === 'word') {
+      const st = store.get('wordStats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
+      el.innerHTML = `<h2>Wordplay – Statistik</h2>
+        <div class="stat-grid">
+          <div><strong>${st.games}</strong><span>gelöst</span></div>
+          <div><strong>${st.games ? Math.round(st.sum / st.games) : 0}</strong><span>Ø Versuche</span></div>
+          <div><strong>${st.best || 0}</strong><span>Bestwert</span></div>
+          <div><strong>${st.streak}</strong><span>Serie</span></div>
+        </div>
+        <p class="muted">Die Serie zählt nur, wenn du das Rätsel des Tages am selben Tag spielst.</p>`;
     } else if (view === 'flag') {
       const st = store.get('flagStats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
       el.innerHTML = `<h2>GeoFlag – Statistik</h2>
@@ -793,14 +992,15 @@
   loadDaily(store.get('dailyLast', null) || undefined);
   loadRankle(store.get('rankleLast', null) || undefined);
   loadFlag(store.get('flagLast', null) || undefined);
-  setView(location.hash === '#rankle' ? 'rankle' : location.hash === '#flag' ? 'flag' : 'daily');
+  const startView = { '#rankle': 'rankle', '#flag': 'flag', '#word': 'word' }[location.hash] || 'daily';
+  setView(startView);
 
   // Tageswechsel bei offener Seite erkennen: neues Rätsel in die Auswahl aufnehmen
   let knownMax = maxPuzzle();
   setInterval(() => {
     if (maxPuzzle() !== knownMax) {
       knownMax = maxPuzzle();
-      renderDaily(); renderRankle(); renderFlag();
+      renderDaily(); renderRankle(); renderFlag(); if (W && word.num) renderWord();
       toast('Ein neuer Tag, ein neues Rätsel #' + knownMax + '!');
     }
   }, 30000);
