@@ -1008,7 +1008,7 @@
 
   // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
   const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.n)));
-  const wordRowHtml = i => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
+  const wordRowHtml = (i, now) => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : now ? ' now' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
     + `<span>${esc(WORDS.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
 
   function renderWord() {
@@ -1016,11 +1016,9 @@
     const wl = fillPicker($('#word-pick'), word.num, wordKey, filters.word);
     $('#word-prev').disabled = !neighbour(wl, word.num, -1);
     $('#word-next').disabled = !neighbour(wl, word.num, 1);
+    const last = word.guesses[word.guesses.length - 1];
     $('#word-list').innerHTML = word.guesses.slice()
-      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(wordRowHtml).join('');
-    const latest = $('#word-latest'), last = word.guesses[word.guesses.length - 1];
-    if (last == null || word.done) { latest.hidden = true; }
-    else { latest.innerHTML = wordRowHtml(last); latest.hidden = false; }
+      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, i === last)).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
     input.value = '';

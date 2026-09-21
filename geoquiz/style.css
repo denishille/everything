@@ -242,14 +242,14 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .rank-row.me .rank-no, .rank-row.me .rank-val { color: #fff; }
 /* Wordplay ------------------------------------------------------------ */
 .wordlist { display: flex; flex-direction: column; gap: .3rem; }
-.wordlist.pin { margin-bottom: 1.4rem; }
-.wordlist.pin .wrow { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--line); }
+
 .wrow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.05rem; border-radius: var(--r); background: var(--surface); overflow: hidden; font-weight: 700; animation: rise .3s cubic-bezier(.2,.7,.2,1); }
 .wrow::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p); background: var(--volt); }
 .wrow span { position: relative; overflow-wrap: anywhere; }
 .wrow .wr { font-variant-numeric: tabular-nums; }
-.wrow.hit { background: var(--text); color: #fff; }
-.wrow.hit::before { display: none; }
+/* .now = der zuletzt geratene Tipp, bis der nächste kommt */
+.wrow.now, .wrow.hit { background: var(--text); color: #fff; }
+.wrow.now::before, .wrow.hit::before { display: none; }
 
 /* GeoFlag ------------------------------------------------------------- */
 .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }

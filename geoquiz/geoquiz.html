@@ -262,14 +262,14 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .rank-row.me .rank-no, .rank-row.me .rank-val { color: #fff; }
 /* Wordplay ------------------------------------------------------------ */
 .wordlist { display: flex; flex-direction: column; gap: .3rem; }
-.wordlist.pin { margin-bottom: 1.4rem; }
-.wordlist.pin .wrow { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--line); }
+
 .wrow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 1.05rem; border-radius: var(--r); background: var(--surface); overflow: hidden; font-weight: 700; animation: rise .3s cubic-bezier(.2,.7,.2,1); }
 .wrow::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p); background: var(--volt); }
 .wrow span { position: relative; overflow-wrap: anywhere; }
 .wrow .wr { font-variant-numeric: tabular-nums; }
-.wrow.hit { background: var(--text); color: #fff; }
-.wrow.hit::before { display: none; }
+/* .now = der zuletzt geratene Tipp, bis der nächste kommt */
+.wrow.now, .wrow.hit { background: var(--text); color: #fff; }
+.wrow.now::before, .wrow.hit::before { display: none; }
 
 /* GeoFlag ------------------------------------------------------------- */
 .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
@@ -494,7 +494,6 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
       <button type="submit" class="primary" id="word-btn" disabled>Raten</button>
     </form>
 
-    <div id="word-latest" class="wordlist pin" hidden></div>
     <div id="word-list" class="wordlist"></div>
 
     <div id="word-result" class="result" hidden></div>
@@ -1534,7 +1533,7 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
 
   // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
   const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.n)));
-  const wordRowHtml = i => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
+  const wordRowHtml = (i, now) => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : now ? ' now' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
     + `<span>${esc(WORDS.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
 
   function renderWord() {
@@ -1542,11 +1541,9 @@ window.WORD_DATA = {"quelle":"de_core_news_md / FrequencyWords / german-nouns","
     const wl = fillPicker($('#word-pick'), word.num, wordKey, filters.word);
     $('#word-prev').disabled = !neighbour(wl, word.num, -1);
     $('#word-next').disabled = !neighbour(wl, word.num, 1);
+    const last = word.guesses[word.guesses.length - 1];
     $('#word-list').innerHTML = word.guesses.slice()
-      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(wordRowHtml).join('');
-    const latest = $('#word-latest'), last = word.guesses[word.guesses.length - 1];
-    if (last == null || word.done) { latest.hidden = true; }
-    else { latest.innerHTML = wordRowHtml(last); latest.hidden = false; }
+      .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, i === last)).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
     input.value = '';
