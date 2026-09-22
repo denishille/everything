@@ -22,10 +22,12 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 
 ## GeoRankle
 
-- 8 Runden, je ein Land. Aus 24 Statistik-Kategorien die wählen, in der das
-  Land weltweit am besten platziert ist. Jede Kategorie nur einmal pro Spiel.
-- 100 Punkte für die beste noch verfügbare Kategorie, sonst
-  `100 · e^(−(Rang − Bestrang)/40)`. Maximum 800.
+- 8 Runden, je ein Land. Aus 19 Statistik-Kategorien die wählen, in der das
+  Land in der Weltrangliste am weitesten vorn steht. Jede Kategorie nur einmal
+  pro Spiel. „Vorn" heißt dabei schlicht Rang 1 der Liste, nicht gut: bei
+  Alkoholkonsum, Inflation oder CO₂-Ausstoß führt, wer am meisten hat.
+- Punkte nach Perzentil: 100, wenn das Land in dieser Kategorie das beste der
+  acht ist, 0 für das schlechteste, dazwischen linear. Maximum 800.
 - Jeden Tag ein neues Rätsel, alle bisherigen bleiben spielbar.
 
 ## GeoFlag
