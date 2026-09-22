@@ -37,20 +37,27 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 ## Wordplay
 
 - Nachbau von contexto.me: ein gesuchtes Wort, beliebig viele Versuche.
-- Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 9910 das am weitesten
-  entfernte; der Balken zeigt den Rang logarithmisch.
+- Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 10.000 das am
+  weitesten entfernte; der Balken zeigt den Rang logarithmisch.
+- Erraten werden darf jedes der 22.732 Wörter, gezählt wird aber nur gegen die
+  10.000 häufigsten. Sonst drängeln sich seltene Komposita vor: zu „Musik“
+  lägen Radiomusik, Jazzmusik und Tanzmusik auf den ersten Plätzen, und alles,
+  was man wirklich tippt, bekäme eine viel größere Zahl.
 - Die Reihenfolge kommt aus der Bedeutungsnähe zweier Wörter (Kosinus zwischen
   ihren Wortvektoren). Gerechnet wird sie im Browser, beim Öffnen des Rätsels —
   deshalb kostet kein weiteres Rätsel zusätzliche Daten.
-- `words.js` ist 1,9 MB (gepackt 1,0 MB) und wird erst geladen, wenn das Spiel
+- `words.js` ist 2,7 MB (gepackt 1,6 MB) und wird erst geladen, wenn das Spiel
   geöffnet wird.
 - **Groß- und Kleinschreibung zählt.** „fest“ und „Fest“ sind zwei Wörter mit
   zwei Vektoren und zwei Rängen. Wer groß schreibt, meint das Substantiv und
   bekommt nur das. Wer klein schreibt, bekommt beide Zeilen auf einmal — raten
   kostet ja nichts.
-- Tolerant bei gebeugten Formen: „Häuser“, „lief“, „ging“ und „strasse“ finden
-  Haus, laufen, gehen und Straße. Rund 51.000 solcher Schreibweisen sind
-  hinterlegt, gerankt wird immer die Grundform.
+- Tolerant bei gebeugten Formen: „Häuser“, „lief“, „ging“ und „kindern“ finden
+  Haus, laufen, gehen und Kind. Rund 11.000 solcher Formen sind hinterlegt,
+  gerankt wird immer die Grundform.
+- Gesucht wird nie ein Schimpfwort, ein Name oder ein Wort mit mehreren
+  Bedeutungen (bei „Pass“ lägen Elfmeter und Visum gleich weit vorn). Raten
+  darf man sie trotzdem alle.
 - „Auflösen“ zeigt das Wort (zwei Klicks, der erste fragt nach). Das Rätsel gilt
   dann als erledigt, aber nicht als gelöst, und zählt nicht in der Statistik.
 
@@ -97,32 +104,44 @@ bleibt der Schriftzug. Höhe wird automatisch auf 30 px skaliert (26 px auf dem
 Handy), am besten ein SVG oder ein PNG mit mindestens 120 px Höhe und
 transparentem Hintergrund. `tools/build_single.py` bettet das Logo als
 data-URI in `geoquiz.html` ein.
-`words.js` (9910 Wörter mit Vektoren, davon 1939 als Rätselwort, dazu rund
-51.000 weitere Schreibweisen) braucht `pip install spacy numpy` und diese
-Quellen:
+`words.js` (22.732 Wörter mit Vektoren, davon 1809 als Rätselwort, dazu rund
+11.000 gebeugte Formen) braucht `pip install spacy numpy` und diese Quellen:
 
 - [explosion/spacy-models](https://github.com/explosion/spacy-models) –
-  `de_core_news_md`, 20.000 Wortvektoren mit 300 Dimensionen
+  `de_core_news_lg`, 500.000 Wortvektoren mit 300 Dimensionen. Es muss das
+  **große** Modell sein: das mittlere hat nur 20.000 echte Vektoren und legt
+  Verwandtes zusammen — Sarg, Urne, Gruft und Leichnam teilen sich dort den
+  Vektor von Grab, und Beerdigung landete zu Grab auf Rang 4341 statt 66.
 - [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords) –
   Worthäufigkeit, bestimmt Auswahl und Reihenfolge
 - [gambolputty/german-nouns](https://github.com/gambolputty/german-nouns) –
   Substantive: Großschreibung und der Vorrat an Rätselwörtern
 - [michmech/lemmatization-lists](https://github.com/michmech/lemmatization-lists) –
   Grundformen und ihre gebeugten Formen
+- [LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) –
+  Schimpfwörter, die nie das gesuchte Wort sein sollen
 
-Die 300 Dimensionen des Modells werden dabei auf 192 gestaucht und mit 4 Bit je
-Dimension gespeichert. Das ist genauso groß wie 96 Dimensionen zu 8 Bit, trifft
-die Nachbarschaft des Originalmodells aber besser (0,77 statt 0,72 der zehn
-nächsten Nachbarn).
+Die 300 Dimensionen des Modells werden dabei auf 160 gestaucht und mit 4 Bit je
+Dimension gespeichert. 4 Bit sind bei gleicher Dateigröße deutlich besser als
+8 Bit bei halb so vielen Dimensionen.
+
+Welche Wörter nicht gesucht werden, steht als Liste im Skript: Schimpfwörter
+über die Datei oben hinaus, Vor- und Ortsnamen, die auch als Substantiv im
+Wörterbuch stehen (Anna, Paris), englische Untertitel-Reste und Wörter mit
+mehreren Bedeutungen. Sowas lässt sich nicht zuverlässig aus Daten ableiten —
+die Liste ist gepflegt und darf wachsen.
 
 ```bash
-curl -LO https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.7.0/de_core_news_md-3.7.0-py3-none-any.whl
+# 568 MB, das große Modell
+curl -LO https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.7.0/de_core_news_lg-3.7.0-py3-none-any.whl
 curl -o /tmp/de_50k.txt https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt
 curl -o /tmp/nouns.csv https://raw.githubusercontent.com/gambolputty/german-nouns/main/german_nouns/nouns.csv
 curl -o /tmp/lemmatization-de.txt https://raw.githubusercontent.com/michmech/lemmatization-lists/master/lemmatization-de.txt
+curl -o /tmp/bad-words-de.txt https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/de
 
-python3 tools/build_words.py --model de_core_news_md-3.7.0-py3-none-any.whl \
-    --freq /tmp/de_50k.txt --nouns /tmp/nouns.csv --lemmas /tmp/lemmatization-de.txt --out words.js
+python3 tools/build_words.py --model de_core_news_lg-3.7.0-py3-none-any.whl \
+    --freq /tmp/de_50k.txt --nouns /tmp/nouns.csv --lemmas /tmp/lemmatization-de.txt \
+    --tabu /tmp/bad-words-de.txt --out words.js
 ```
 
 ## Hosten (Cloudflare Pages)

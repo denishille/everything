@@ -959,7 +959,8 @@
     (d.alias || '').split(',').forEach((s, i) => {
       if (s) for (const f of s.split('|')) if (!alias.has(f)) alias.set(f, i);
     });
-    WORDS = { list, exakt, klein, alias, vec, dim, n, order: shuffled(d.pool, mulberry32(20260921)) };
+    WORDS = { list, exakt, klein, alias, vec, dim, n, kern: Math.min(d.kern || n, n),
+              order: shuffled(d.pool, mulberry32(20260921)) };
   }
 
   // words.js ist groß und wird nur für dieses Spiel gebraucht: erst beim Öffnen laden.
@@ -980,19 +981,29 @@
     withWords(() => { if (!word.num) loadWord(store.get('wordLast', null) || undefined); });
   }
 
-  // Rang jedes Worts zum gesuchten: 1 = das Wort selbst, N = am weitesten weg.
+  // Rang jedes Worts zum gesuchten: 1 = das Wort selbst. Gezählt wird nur
+  // gegen die Kernwörter (die häufigsten), sonst schieben sich seltene
+  // Komposita wie "Jazzmusik" vor alles, was man wirklich tippt.
   function rankAll(si) {
-    const { vec, dim, n } = WORDS;
-    const sim = new Float32Array(n), idx = new Int32Array(n), p = si * dim;
+    const { vec, dim, n, kern } = WORDS;
+    const sim = new Float32Array(n), p = si * dim;
     for (let i = 0; i < n; i++) {
       const o = i * dim;
       let s = 0;
       for (let k = 0; k < dim; k++) s += vec[o + k] * vec[p + k];
-      sim[i] = s; idx[i] = i;
+      sim[i] = s;
     }
-    idx.sort((a, b) => sim[b] - sim[a]);
+    const skala = sim.slice(0, kern).sort();              // aufsteigend
     const rank = new Int32Array(n);
-    for (let r = 0; r < n; r++) rank[idx[r]] = r + 1;
+    for (let i = 0; i < n; i++) {
+      // Rang = wie viele Kernwörter näher dran sind, plus eins
+      let lo = 0, hi = kern;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (skala[mid] > sim[i]) hi = mid; else lo = mid + 1;
+      }
+      rank[i] = kern - lo + 1;
+    }
     return rank;
   }
 
@@ -1022,7 +1033,7 @@
   }
 
   // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
-  const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.n)));
+  const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.kern)));
   const wordRowHtml = (i, now) => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : now ? ' now' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
     + `<span>${esc(WORDS.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
 
