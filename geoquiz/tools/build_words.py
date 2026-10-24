@@ -14,6 +14,9 @@ Drei Dinge, die dabei wichtig sind:
 * **Wortformen.** Gerankt wird eine Grundform je Vektor, aber „Hunde",
   „Hundes" und „hunde" sollen trotzdem gefunden werden. Solche Formen stehen
   als Aliasse dabei und zeigen auf ihre Grundform.
+* **Tipps.** Schimpfwörter darf man raten, aber das Spiel schlägt sie nicht
+  von sich aus vor: ihre Nummern stehen in "tabu", die Tipp-Funktion lässt sie
+  aus.
 * **Rangskala.** Erraten werden darf alles, gezählt wird nur gegen die --kern
   häufigsten Wörter. Sonst drängeln sich seltene Komposita vor: zu „Musik"
   lägen sonst Radiomusik, Jazzmusik und Tanzmusik auf den ersten Plätzen und
@@ -65,25 +68,28 @@ WORT = re.compile(r"^[a-zäöüßA-ZÄÖÜ]{3,18}$")
 # Substantive, die als Rätselwort nichts taugen: Funktionswörter, die im
 # Wörterbuch auch als Substantiv stehen (das Aber, das Sein), Interjektionen,
 # Abkürzungen — und Derbes, das im Untertitel-Korpus weit oben steht.
+# Grobes und Schweres. Raten darf man das alles, aber weder gesucht noch als
+# Tipp vorgeschlagen wird es (zusammen mit der Liste aus --tabu).
+ANSTOESSIG = {
+    "arsch", "hure", "scheiße", "titten", "schwanz", "nutte", "fotze", "wichser", "bastard",
+    "penis", "sex", "kacke", "pisse", "hurensohn", "schlampe", "nigger", "neger", "ficken",
+    "scheiß", "scheißer", "fresse", "maul", "schnauze", "hintern", "mistkerl", "dreckskerl",
+    "blödmann", "vollidiot", "schwachkopf", "abschaum", "depp", "weichei", "tussi", "schiss",
+    "penner", "spinner", "irrer", "schwein", "bude", "vögeln", "morden",
+    "vergewaltigung", "folter", "hinrichtung", "selbstmord", "heroin", "kokain", "koks",
+    "henker", "vergasung", "amoklauf", "missbrauch",
+}
+
 GESPERRT = {
     "nein", "hallo", "warte", "schau", "dank", "leid", "miss", "bisschen", "namen", "bestes",
     "trage", "schrieb", "amen", "king", "sir", "madam", "mister", "lady", "boss", "baby",
-    "arsch", "hure", "scheiße", "titten", "schwanz", "nutte", "fotze", "wichser", "bastard",
-    "penis", "sex", "kacke", "pisse", "hurensohn", "schlampe", "nigger", "neger",
-    "gerade", "weiß", "bitte", "selbst", "fremde", "oberst", "ficken",
+    "gerade", "weiß", "bitte", "selbst", "fremde", "oberst",
     # nominalisierte Verben, die als gesuchtes Wort niemand erwartet
-    "morden", "vögeln", "opfern", "fällen", "vorgehen", "benehmen", "versagen",
+    "opfern", "fällen", "vorgehen", "benehmen", "versagen",
     "bedenken", "wetten", "formen", "scheitern", "hexen", "flecken", "niemand", "dritter",
     # Adjektive und Ähnliches, das im Wörterbuch als Substantiv steht
     "elegant", "matt", "royal", "platt", "wild", "hart", "dunkel", "heil", "steig", "bete",
     "schick", "real", "first", "back", "green", "single", "alpha", "level", "master",
-    # Grobes, das die Schimpfwortliste nicht abdeckt
-    "scheiß", "scheißer", "fresse", "maul", "schnauze", "hintern", "mistkerl", "dreckskerl",
-    "blödmann", "vollidiot", "schwachkopf", "abschaum", "depp", "weichei", "tussi", "schiss",
-    "penner", "spinner", "irrer", "schwein", "nutte", "schlampe", "bude",
-    # Themen, die als Rätsel des Tages niemand haben will
-    "vergewaltigung", "folter", "hinrichtung", "selbstmord", "heroin", "kokain", "koks",
-    "henker", "vergasung", "amoklauf", "missbrauch",
     # Vor- und Nachnamen sowie Ortsnamen, die auch als Substantiv im Wörterbuch stehen
     "paris", "henry", "anna", "tommy", "marie", "charlotte", "klaus", "china", "hans",
     "bobby", "luke", "kate", "molly", "penny", "ross", "boston", "gloria", "michel",
@@ -176,7 +182,7 @@ def taugt_als_raetsel(wort, klein, r_gross, r_klein, substantive, eigennamen, gr
     """
     if not (len(wort) >= 4 and wort[0].isupper() and klein in substantive):
         return False
-    if klein in eigennamen or klein in GESPERRT or klein in MEHRDEUTIG or klein in tabu:
+    if klein in eigennamen or klein in GESPERRT or klein in ANSTOESSIG or klein in MEHRDEUTIG or klein in tabu:
         return False
     if r_klein is not None and r_gross > r_klein:
         adjektivpaar = (klein in grundformen and not klein.endswith(("en", "n"))
@@ -310,6 +316,10 @@ def main():
     print(f"{a.dims} Dimensionen à {a.bits} Bit, {len(roh) // 1024} KB Vektoren")
     probe(woerter, Q, skala)
 
+    # Wörter, die die Tipp-Funktion nicht vorschlagen soll
+    tabu_idx = [i for i, x in enumerate(woerter) if x.lower() in tabu or x.lower() in ANSTOESSIG]
+    print(f"{len(tabu_idx)} Wörter sind als Tipp gesperrt")
+
     daten = {
         "quelle": "de_core_news_lg / FrequencyWords / german-nouns / lemmatization-lists",
         "dim": a.dims,
@@ -319,6 +329,7 @@ def main():
         "woerter": ",".join(woerter),
         "alias": ",".join(alias),
         "pool": pool,
+        "tabu": tabu_idx,
         "vek": base64.b64encode(roh).decode("ascii"),
     }
     with open(a.out, "w", encoding="utf-8") as f:

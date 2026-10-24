@@ -927,7 +927,7 @@
   //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
   // =================================================================
   const wordKey = n => 'word.' + n;
-  const word = { num: 0, day: 0, secret: '', guesses: [], done: false, won: false, lastN: 1, ranks: null };
+  const word = { num: 0, day: 0, secret: '', guesses: [], tipps: [], done: false, won: false, lastN: 1, ranks: null, order: null };
   let WORDS = null;                                 // Wortliste und Vektoren, erst bei Bedarf geladen
 
   function initWords(d) {
@@ -960,7 +960,8 @@
       if (s) for (const f of s.split('|')) if (!alias.has(f)) alias.set(f, i);
     });
     WORDS = { list, exakt, klein, alias, vec, dim, n, kern: Math.min(d.kern || n, n),
-              order: shuffled(d.pool, mulberry32(20260921)) };
+              pool: shuffled(d.pool, mulberry32(20260921)),      // Reihenfolge der Rätselwörter
+              tabu: new Set(d.tabu || []) };                      // nicht als Tipp vorschlagen
   }
 
   // words.js ist groß und wird nur für dieses Spiel gebraucht: erst beim Öffnen laden.
@@ -993,7 +994,12 @@
       for (let k = 0; k < dim; k++) s += vec[o + k] * vec[p + k];
       sim[i] = s;
     }
-    const skala = sim.slice(0, kern).sort();              // aufsteigend
+    // Kernwörter nach Nähe sortiert: order[r-1] ist das Wort mit Rang r
+    const order = new Int32Array(kern);
+    for (let i = 0; i < kern; i++) order[i] = i;
+    order.sort((a, b) => sim[b] - sim[a]);
+    const skala = new Float32Array(kern);                 // dieselben Werte aufsteigend
+    for (let r = 0; r < kern; r++) skala[kern - 1 - r] = sim[order[r]];
     const rank = new Int32Array(n);
     for (let i = 0; i < n; i++) {
       // Rang = wie viele Kernwörter näher dran sind, plus eins
@@ -1004,22 +1010,24 @@
       }
       rank[i] = kern - lo + 1;
     }
-    return rank;
+    return { rank, order };
   }
 
   function loadWord(n) {
     n = clampPuzzle(n);
     word.num = n; word.day = n - 1;
     store.set('wordLast', n);
-    const si = WORDS.order[((word.day % WORDS.order.length) + WORDS.order.length) % WORDS.order.length];
+    const si = WORDS.pool[((word.day % WORDS.pool.length) + WORDS.pool.length) % WORDS.pool.length];
     word.secret = WORDS.list[si];
-    word.ranks = rankAll(si);
+    const gerechnet = rankAll(si);
+    word.ranks = gerechnet.rank; word.order = gerechnet.order;
     const saved = store.get(wordKey(n), null);
     if (saved && saved.secret === word.secret) {
-      word.guesses = saved.guesses.map(w => WORDS.exakt.get(String(w))).filter(i => i != null);
+      const zuIndex = l => (l || []).map(w => WORDS.exakt.get(String(w))).filter(i => i != null);
+      word.guesses = zuIndex(saved.guesses); word.tipps = zuIndex(saved.tipps);
       word.done = !!saved.done; word.won = !!saved.won;
     } else {
-      word.guesses = []; word.done = false; word.won = false;
+      word.guesses = []; word.tipps = []; word.done = false; word.won = false;
     }
     word.lastN = 1;
     renderWord();
@@ -1028,14 +1036,18 @@
     // Wörter statt Nummern speichern: die Liste kann sich beim nächsten Datenbau ändern.
     store.set(wordKey(word.num), {
       day: word.day, secret: word.secret, guesses: word.guesses.map(i => WORDS.list[i]),
-      done: word.done, won: word.won,
+      tipps: word.tipps.map(i => WORDS.list[i]), done: word.done, won: word.won,
     });
   }
 
   // Balkenlänge logarithmisch: auch Rang 300 ist noch zu sehen.
   const wordBar = r => Math.max(0, 100 * (1 - Math.log(r) / Math.log(WORDS.kern)));
-  const wordRowHtml = (i, now) => `<div class="wrow${word.ranks[i] === 1 ? ' hit' : now ? ' now' : ''}" style="--p:${wordBar(word.ranks[i]).toFixed(1)}%">`
-    + `<span>${esc(WORDS.list[i])}</span><span class="wr">${nf0.format(word.ranks[i])}</span></div>`;
+  const wordRowHtml = (i, now) => {
+    const r = word.ranks[i];
+    return `<div class="wrow${r === 1 ? ' hit' : now ? ' now' : ''}" style="--p:${wordBar(r).toFixed(1)}%">`
+      + `<span>${esc(WORDS.list[i])}</span>`
+      + `<span class="wr">${word.tipps.includes(i) ? '<i>Tipp</i>' : ''}${nf0.format(r)}</span></div>`;
+  };
 
   function renderWord() {
     $('#word-num').textContent = 'Rätsel #' + word.num;
@@ -1047,7 +1059,7 @@
       .sort((a, b) => word.ranks[a] - word.ranks[b]).map(i => wordRowHtml(i, last.includes(i))).join('');
     const input = $('#word-input');
     input.disabled = word.done; $('#word-btn').disabled = word.done;
-    $('#word-give').disabled = word.done;
+    $('#word-give').disabled = word.done; $('#word-tip').disabled = word.done;
     armGive(false);
     input.value = '';
     input.placeholder = word.done ? (word.won ? 'Gelöst' : 'Aufgelöst') : 'Wort eingeben …';
@@ -1061,7 +1073,7 @@
     const wPrev = neighbour(wList, word.num, -1), wNext = neighbour(wList, word.num, 1);
     box.innerHTML = `
       <h2>${esc(word.secret)}</h2>
-      <div class="facts"><span>${word.won ? word.guesses.length + ' Versuche' : 'aufgelöst'}</span></div>
+      <div class="facts"><span>${word.won ? word.guesses.length + ' Versuche' : 'aufgelöst'}</span>${word.tipps.length ? `<span>davon ${word.tipps.length} ${word.tipps.length === 1 ? 'Tipp' : 'Tipps'}</span>` : ''}</div>
       <div class="actions">
         ${wPrev ? `<button class="ghost" id="btn-word-prev">‹ Rätsel #${wPrev}</button>` : ''}
         ${wNext ? `<button class="ghost" id="btn-word-next">Rätsel #${wNext} ›</button>` : ''}
@@ -1146,6 +1158,27 @@
     renderWord();
   });
   $('#word-input').addEventListener('input', () => { if (giveArmed) armGive(false); });
+
+  // Tipp: verrät das Wort, das halb so weit weg ist wie der bisher beste Treffer.
+  // Ohne eigenen Treffer fängt es bei Rang 1000 an, danach halbiert es sich.
+  $('#word-tip').addEventListener('click', () => {
+    if (word.done || !WORDS) return;
+    const best = word.guesses.length ? Math.min(...word.guesses.map(i => word.ranks[i])) : 2000;
+    const ziel = Math.floor(best / 2);
+    if (ziel < 2) { toast('Näher geht es nicht mehr'); return; }
+    // vom Zielrang nach außen suchen, bis ein noch nicht genanntes Wort kommt
+    for (let d = 0; d < WORDS.kern; d++) {
+      for (const r of (d ? [ziel - d, ziel + d] : [ziel])) {
+        if (r < 2 || r > WORDS.kern) continue;
+        const i = word.order[r - 1];
+        if (word.guesses.includes(i) || WORDS.tabu.has(i)) continue;
+        word.guesses.push(i); word.tipps.push(i); word.lastN = 1;
+        saveWord();
+        renderWord();
+        return;
+      }
+    }
+  });
 
   $('#word-prev').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, -1); if (n) loadWord(n); });
   $('#word-next').addEventListener('click', () => { const n = neighbour(puzzleList(wordKey, filters.word), word.num, 1); if (n) loadWord(n); });

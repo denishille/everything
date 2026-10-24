@@ -60,6 +60,10 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 - Gesucht wird nie ein Schimpfwort, ein Name oder ein Wort mit mehreren
   Bedeutungen (bei „Pass“ lägen Elfmeter und Visum gleich weit vorn). Raten
   darf man sie trotzdem alle.
+- „Tipp“ verrät ein Wort, das halb so weit weg ist wie der bisher beste
+  Treffer — ohne eigenen Treffer fängt es bei Rang 1000 an, danach 500, 250,
+  125 … Tipps stehen mit Marke in der Liste und zählen als Versuch.
+  Schimpfwörter schlägt das Spiel dabei nie vor.
 - „Auflösen“ zeigt das Wort (zwei Klicks, der erste fragt nach). Das Rätsel gilt
   dann als erledigt, aber nicht als gelöst, und zählt nicht in der Statistik.
 
