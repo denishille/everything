@@ -157,7 +157,7 @@ und **PokePlay**, gleiche Optik, gleiche Rätselnummern, eigener
 Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
 Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
 
-- **PokeFind** – geheimes Pokémon in 5 Versuchen. Hinweise: Pokédex-Nummer,
+- **PokeFind** – geheimes Pokémon in 10 Versuchen (150 kennt nicht jeder auswendig). Hinweise: Pokédex-Nummer,
   Typ, Fundort, Lebensraum, Entwicklungsstufe, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
   gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
   aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.

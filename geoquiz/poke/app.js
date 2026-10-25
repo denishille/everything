@@ -6,7 +6,7 @@
   const D = window.POKE_DATA;
   const MON = D.pokemon;
   const BY_ID = Object.fromEntries(MON.map(p => [p.id, p]));
-  const MAX_GUESSES = 5;
+  const MAX_GUESSES = 10;
   const EPOCH = new Date(2026, 0, 1);           // Rätsel #1, wie bei Geobrudis
 
   // ------------------------------------------------------------------ utils
@@ -121,7 +121,7 @@
   }
 
   // =================================================================
-  //  POKEFIND – das geheime Pokémon in 5 Versuchen
+  //  POKEFIND – das geheime Pokémon in 10 Versuchen
   // =================================================================
   const FIND_ORDER = shuffled(MON, mulberry32(20261025));
   const findKey = n => 'find.' + n;
@@ -509,7 +509,7 @@
           <div><strong>${st.maxStreak || 0}</strong><span>beste Serie</span></div>
         </div>
         <h2>Verteilung der Versuche</h2>
-        <div class="dist">${[1, 2, 3, 4, 5].map(n => `<span>${n}</span><div class="bar${n === hl ? ' hl' : ''}" style="width:${Math.max(7, 100 * ((st.dist || {})[n] || 0) / maxD)}%">${(st.dist || {})[n] || 0}</div>`).join('')}</div>`;
+        <div class="dist">${Array.from({ length: MAX_GUESSES }, (_, i) => i + 1).map(n => `<span>${n}</span><div class="bar${n === hl ? ' hl' : ''}" style="width:${Math.max(7, 100 * ((st.dist || {})[n] || 0) / maxD)}%">${(st.dist || {})[n] || 0}</div>`).join('')}</div>`;
     } else {
       const st = store.get('playStats', { played: 0, wins: 0, sum: 0, best: 0, streak: 0 });
       el.innerHTML = `<h2>PokePlay – Statistik</h2>
