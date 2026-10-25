@@ -132,6 +132,7 @@
     { key: 'types', lbl: 'Typ', wide: true },
     { key: 'places', lbl: 'Fundort', wide: true },
     { key: 'habitat', lbl: 'Lebensraum' },
+    { key: 'stage', lbl: 'Stufe' },
     { key: 'color', lbl: 'Farbe' },
     { key: 'height', lbl: 'Größe' },
     { key: 'weight', lbl: 'Gewicht' },
@@ -159,6 +160,7 @@
     out.num = zahlZelle(g.id, s.id, '#' + g.id);
     out.types = chipZelle(g.types, s.types, '–', 2);
     out.places = chipZelle(g.places, s.places, 'nur Entwicklung');
+    out.stage = zahlZelle(g.stage, s.stage, nf0.format(g.stage));
     out.height = zahlZelle(g.height, s.height, nf1.format(g.height) + ' m');
     out.weight = zahlZelle(g.weight, s.weight, nf1.format(g.weight) + ' kg');
     out.color = { cls: g.color === s.color ? 'ok' : 'miss', html: esc(g.color) };
@@ -319,20 +321,19 @@
   const play = { num: 0, day: 0, secret: null, guesses: [], tipps: [], done: false, won: false, lastN: 1, ranks: {}, order: [] };
   const PLAY_ORDER = shuffled(MON, mulberry32(20261026));
 
-  // Ähnlichkeit: Typ zählt am meisten, dann Basiswerte und Entwicklungsreihe,
-  // dazu Eigruppe, Größe, Gewicht, Farbe, Lebensraum.
+  // Ähnlichkeit aus fünf Dingen, die man dem Pokémon ansieht oder im Spiel
+  // erlebt: Typ, Gegend zum Fangen, Optik, Entwicklungsstufe und Größe.
+  // Kampfwerte bleiben bewusst draußen.
   const lg = x => Math.log(Math.max(x, .1));
-  const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+  const anteil = (a, b) => a.filter(x => b.includes(x)).length / Math.max(a.length, b.length);
   function similar(a, b) {
-    const typ = a.types.filter(t => b.types.includes(t)).length / Math.max(a.types.length, b.types.length);
-    const ei = a.eggs.length && b.eggs.length
-      ? a.eggs.filter(e => b.eggs.includes(e)).length / Math.max(a.eggs.length, b.eggs.length) : 0;
-    const werte = Math.max(0, 1 - STATS.reduce((s, k) => s + Math.abs(a.stats[k] - b.stats[k]), 0) / 6 / 60);
-    const groesse = Math.max(0, 1 - Math.abs(lg(a.height) - lg(b.height)) / 2.5);
-    const gewicht = Math.max(0, 1 - Math.abs(lg(a.weight) - lg(b.weight)) / 5);
-    return 1.00 * typ + 0.45 * ei + 0.60 * werte + 0.30 * groesse + 0.30 * gewicht
-      + 0.35 * (a.color === b.color) + 0.25 * (a.habitat === b.habitat)
-      + 0.60 * (a.chain === b.chain) + 0.20 * (a.stage === b.stage) + 0.25 * (a.legend === b.legend);
+    const typ = anteil(a.types, b.types);
+    // gemeinsame Fundorte; wer nirgends zu fangen ist, teilt nur den Lebensraum
+    const orte = a.places.length && b.places.length ? anteil(a.places, b.places) : 0;
+    const gegend = Math.max(orte, 0.35 * (a.habitat === b.habitat));
+    const optik = 0.60 * (a.color === b.color) + 0.40 * (a.shape === b.shape);
+    const groesse = Math.max(0, 1 - Math.abs(lg(a.height) - lg(b.height)) / 2.0);
+    return 1.00 * typ + 0.80 * gegend + 0.60 * optik + 0.35 * (a.stage === b.stage) + 0.45 * groesse;
   }
   function rankAll(secret) {
     const sortiert = MON.slice().sort((x, y) => similar(secret, y) - similar(secret, x));

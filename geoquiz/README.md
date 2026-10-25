@@ -158,18 +158,20 @@ Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
 Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
 
 - **PokeFind** – geheimes Pokémon in 5 Versuchen. Hinweise: Pokédex-Nummer,
-  Typ, Fundort, Lebensraum, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
+  Typ, Fundort, Lebensraum, Entwicklungsstufe, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
   gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
   aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.
 - **PokePlay** – nach Ähnlichkeit raten, mit Tipp und Auflösen wie Wordplay.
   Beide Spiele haben eine Vorschlagsliste: die 150 Namen schreibt niemand
   auswendig richtig.
   Die Ähnlichkeit ist hier keine Statistik aus Texten, sondern eine Formel
-  aus den Pokémon-Daten: Typ zählt am meisten, dann Basiswerte und
-  Entwicklungsreihe, dazu Eigruppe, Größe, Gewicht, Farbe und Lebensraum.
-  Zu Glumanda liegen damit Glutexo und Glurak vorn, dann Vulpix und Magmar.
+  aus fünf Dingen, die man dem Pokémon ansieht oder im Spiel erlebt: Typ
+  (Gewicht 1,0), Gegend zum Fangen (0,8), Optik aus Farbe und Körperform
+  (0,6), Größe (0,45) und Entwicklungsstufe (0,35). Kampfwerte bleiben
+  bewusst draußen. Zu Glumanda liegen damit Glutexo, Magmar, Vulpix und
+  Fukano vorn.
 
-`poke/data.js` (48 KB) und die 150 Sprites in `poke/sprites/` (604 KB) kommen
+`poke/data.js` (31 KB) und die 150 Sprites in `poke/sprites/` (604 KB) kommen
 aus [PokeAPI](https://pokeapi.co) (CC BY-NC-SA). Deutsche Namen, Typen und
 Farben stehen dort direkt in den Tabellen:
 
