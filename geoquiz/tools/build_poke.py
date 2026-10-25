@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Erzeugt poke/data.js: die ersten 150 Pokémon für Pokebrudis.
+"""Erzeugt poke/data.js: die ersten 150 Pokémon für Pokebrudis (PokeFind, PokePlay).
 
 Quellen (werden nicht mitversioniert, siehe README):
   - PokeAPI/pokeapi   data/v2/csv/*.csv  (Namen, Typen, Werte, Farben, Eigruppen,
                       Fundorte aus Rot, Blau und Gelb)
   - PokeAPI/sprites   sprites/pokemon/<id>.png  (96×96, kommen nach poke/sprites/)
 
-Deutsch kommt direkt aus den Tabellen (language_id 6). Die Ränge je Kategorie
-rechnet dieses Skript vor, damit PokeRank im Browser nichts sortieren muss.
+Deutsch kommt direkt aus den Tabellen (language_id 6), nur die neun
+Lebensräume stehen dort bloß englisch und werden hier übersetzt.
 
 Aufruf:
   python3 tools/build_poke.py --csv pokeapi/data/v2/csv --out poke/data.js
@@ -29,23 +29,6 @@ LEBENSRAUM = {
 }
 BIS = 150                                   # die ersten 150, ohne Mew
 GEN1 = {"1", "2", "3"}                      # Rot, Blau, Gelb
-
-# Kategorien für PokeRank: Schlüssel, Name, Einheit, Format, Erklärung.
-# Rang 1 ist immer "am meisten" — auch da, wo das nichts Gutes heißt.
-KATEGORIEN = [
-    ("hp", "Meiste KP", "", "int", "Basis-KP, Rang 1 = am meisten"),
-    ("atk", "Höchster Angriff", "", "int", "Basiswert Angriff, Rang 1 = am höchsten"),
-    ("def", "Höchste Verteidigung", "", "int", "Basiswert Verteidigung, Rang 1 = am höchsten"),
-    ("spa", "Höchster Spezial-Angriff", "", "int", "Basiswert Spezial-Angriff, Rang 1 = am höchsten"),
-    ("spd", "Höchste Spezial-Verteidigung", "", "int", "Basiswert Spezial-Verteidigung, Rang 1 = am höchsten"),
-    ("spe", "Höchste Initiative", "", "int", "Basiswert Initiative, Rang 1 = am höchsten"),
-    ("total", "Höchste Werte gesamt", "", "int", "Summe der sechs Basiswerte, Rang 1 = am höchsten"),
-    ("weight", "Schwerstes Pokémon", "kg", "dec1", "Gewicht, Rang 1 = am schwersten"),
-    ("height", "Größtes Pokémon", "m", "dec1", "Größe, Rang 1 = am größten"),
-    ("exp", "Meiste Basis-Erfahrung", "EP", "int", "Erfahrungspunkte beim Besiegen, Rang 1 = am meisten"),
-    ("gen", "Niedrigste Pokédex-Nummer", "", "int", "Rang 1 = Nummer 1"),
-]
-
 
 def lies(pfad, *, schluessel=None):
     with open(pfad, newline="", encoding="utf-8") as f:
@@ -128,31 +111,15 @@ def main():
         })
     liste.sort(key=lambda p: p["id"])
 
-    # Werte, nach denen PokeRank sortiert
-    def wert(p, key):
-        if key in p["stats"]:
-            return p["stats"][key]
-        if key == "total":
-            return sum(p["stats"].values())
-        if key == "gen":
-            return -p["id"]
-        return p[key]
-
-    for key, *_ in KATEGORIEN:
-        for rang, p in enumerate(sorted(liste, key=lambda p: -wert(p, key)), 1):
-            p.setdefault("ranks", {})[key] = rang
-            p.setdefault("vals", {})[key] = wert(p, key) if key != "gen" else -wert(p, key)
-
     daten = {
         "quelle": "PokeAPI (pokeapi.co), CC BY-NC-SA",
-        "categories": [dict(zip(("key", "name", "unit", "fmt", "desc"), k)) for k in KATEGORIEN],
         "pokemon": liste,
     }
     with open(a.out, "w", encoding="utf-8") as f:
         f.write("window.POKE_DATA = ")
         json.dump(daten, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")
-    print(f"{len(liste)} Pokémon, {len(KATEGORIEN)} Kategorien")
+    print(f"{len(liste)} Pokémon")
     print("geschrieben:", a.out, os.path.getsize(a.out) // 1024, "KB")
     fehlt = [p["name"] for p in liste if not p["types"] or not p["eggs"]]
     if fehlt:

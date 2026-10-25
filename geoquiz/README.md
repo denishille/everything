@@ -152,8 +152,8 @@ python3 tools/build_words.py --model de_core_news_lg-3.7.0-py3-none-any.whl \
 
 ## Pokebrudis
 
-Unter `poke/` liegt dieselbe Idee mit den ersten 150 Pokémon: **PokeFind**,
-**PokeRank** und **PokePlay**, gleiche Optik, gleiche Rätselnummern, eigener
+Unter `poke/` liegt dieselbe Idee mit den ersten 150 Pokémon: **PokeFind**
+und **PokePlay**, gleiche Optik, gleiche Rätselnummern, eigener
 Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
 Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
 
@@ -161,16 +161,15 @@ Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
   Typ, Fundort, Lebensraum, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
   gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
   aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.
-- **PokeRank** – 8 Runden, aus 11 Kategorien die wählen, in der das Pokémon
-  unter allen 150 am weitesten vorn steht. Punkte nach Perzentil wie bei
-  GeoRank.
 - **PokePlay** – nach Ähnlichkeit raten, mit Tipp und Auflösen wie Wordplay.
+  Beide Spiele haben eine Vorschlagsliste: die 150 Namen schreibt niemand
+  auswendig richtig.
   Die Ähnlichkeit ist hier keine Statistik aus Texten, sondern eine Formel
   aus den Pokémon-Daten: Typ zählt am meisten, dann Basiswerte und
   Entwicklungsreihe, dazu Eigruppe, Größe, Gewicht, Farbe und Lebensraum.
   Zu Glumanda liegen damit Glutexo und Glurak vorn, dann Vulpix und Magmar.
 
-`poke/data.js` (76 KB) und die 150 Sprites in `poke/sprites/` (604 KB) kommen
+`poke/data.js` (48 KB) und die 150 Sprites in `poke/sprites/` (604 KB) kommen
 aus [PokeAPI](https://pokeapi.co) (CC BY-NC-SA). Deutsche Namen, Typen und
 Farben stehen dort direkt in den Tabellen:
 

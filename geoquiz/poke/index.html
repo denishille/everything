@@ -19,7 +19,6 @@
   <div class="brand"><span class="brand-text">Pokebrudis</span></div>
   <nav class="tabs" role="tablist">
     <button class="tab active" data-view="find" role="tab">PokeFind</button>
-    <button class="tab" data-view="rank" role="tab">PokeRank</button>
     <button class="tab" data-view="play" role="tab">PokePlay</button>
   </nav>
   <div class="top-actions">
@@ -65,45 +64,6 @@
     <div id="find-guesses" class="guesses"></div>
   </section>
 
-  <!-- ================= PokeRank ================= -->
-  <section id="view-rank" class="view">
-    <div class="view-head">
-      <div>
-        <h1 class="display"><span id="rank-num" class="num"></span>PokeRank</h1>
-        <p class="sub">In welcher Kategorie steht das Pokémon unter allen 150 am weitesten vorn?</p>
-      </div>
-      <div class="nav" aria-label="Rätsel-Navigation">
-        <select class="nav-pick nav-filter" id="rank-filter" aria-label="Filter">
-          <option value="all">Alle</option>
-          <option value="solved">Gelöst</option>
-          <option value="open">Ungelöst</option>
-        </select>
-        <button class="nav-btn" id="rank-prev" aria-label="Vorheriges Rätsel">‹</button>
-        <select class="nav-pick" id="rank-pick" aria-label="Rätsel wählen"></select>
-        <button class="nav-btn" id="rank-next" aria-label="Nächstes Rätsel">›</button>
-      </div>
-    </div>
-
-    <div id="rank-board">
-      <div class="rankle-status">
-        <div class="rounds" id="rank-rounds"></div>
-        <div class="score"><strong id="rank-score">0</strong>/ 800 Punkte</div>
-      </div>
-
-      <div class="flag-card">
-        <div class="flag-wrap poke-wrap" id="rank-sprite"></div>
-        <div class="flag-meta">
-          <h2 id="rank-name" class="display"></h2>
-          <p class="muted" id="rank-sub"></p>
-        </div>
-      </div>
-
-      <div id="rank-grid" class="cat-grid"></div>
-    </div>
-
-    <div id="rank-result" class="result" hidden></div>
-  </section>
-
   <!-- ================= PokePlay ================= -->
   <section id="view-play" class="view">
     <div class="view-head">
@@ -125,7 +85,8 @@
 
     <form id="play-form" class="guess-form" autocomplete="off" role="search">
       <div class="combo">
-        <input id="play-input" type="search" name="p" placeholder="Pokémon eingeben …" aria-label="Pokémon" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
+        <input id="play-input" type="search" name="p" placeholder="Pokémon eingeben …" aria-label="Pokémon" role="combobox" aria-autocomplete="list" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
+        <ul id="play-suggest" class="suggest" hidden></ul>
       </div>
       <button type="submit" class="primary" id="play-btn">Raten</button>
       <button type="button" class="ghost" id="play-tip">Tipp</button>
