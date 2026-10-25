@@ -2,7 +2,8 @@
 """Erzeugt poke/data.js: die ersten 150 Pokémon für Pokebrudis.
 
 Quellen (werden nicht mitversioniert, siehe README):
-  - PokeAPI/pokeapi   data/v2/csv/*.csv  (Namen, Typen, Werte, Farben, Eigruppen)
+  - PokeAPI/pokeapi   data/v2/csv/*.csv  (Namen, Typen, Werte, Farben, Eigruppen,
+                      Fundorte aus Rot, Blau und Gelb)
   - PokeAPI/sprites   sprites/pokemon/<id>.png  (96×96, kommen nach poke/sprites/)
 
 Deutsch kommt direkt aus den Tabellen (language_id 6). Die Ränge je Kategorie
@@ -27,6 +28,7 @@ LEBENSRAUM = {
     "water's edge": "Ufer",
 }
 BIS = 150                                   # die ersten 150, ohne Mew
+GEN1 = {"1", "2", "3"}                      # Rot, Blau, Gelb
 
 # Kategorien für PokeRank: Schlüssel, Name, Einheit, Format, Erklärung.
 # Rang 1 ist immer "am meisten" — auch da, wo das nichts Gutes heißt.
@@ -73,6 +75,19 @@ def main():
     art = {z["pokemon_species_id"]: z for z in lies(weg("pokemon_species_names.csv"))
            if z["local_language_id"] == DEUTSCH}
 
+    # Fundorte aus Rot, Blau und Gelb: Begegnung → Gebiet → Ort → deutscher Name
+    gebiet = {z["id"]: z["location_id"] for z in lies(weg("location_areas.csv"))}
+    ortsname = {z["location_id"]: z["name"] for z in lies(weg("location_names.csv"))
+                if z["local_language_id"] == DEUTSCH}
+    orte = {}
+    for z in lies(weg("encounters.csv")):
+        if z["version_id"] not in GEN1:
+            continue
+        name = ortsname.get(gebiet[z["location_area_id"]])
+        liste = orte.setdefault(z["pokemon_id"], [])
+        if name and name not in liste:
+            liste.append(name)
+
     typen, werte, eier = {}, {}, {}
     for z in lies(weg("pokemon_types.csv")):
         typen.setdefault(z["pokemon_id"], []).append((int(z["slot"]), typname[z["type_id"]]))
@@ -106,6 +121,7 @@ def main():
             "color": farbname[s["color_id"]],
             "habitat": ortname.get(s["habitat_id"] or ""),
             "eggs": sorted(eier.get(sid, [])),
+            "places": orte.get(z["id"], []),              # leer = in Gen 1 nur durch Entwicklung
             "chain": int(s["evolution_chain_id"]),
             "stage": stufe,
             "legend": s["is_legendary"] == "1" or s["is_mythical"] == "1",
@@ -141,6 +157,7 @@ def main():
     fehlt = [p["name"] for p in liste if not p["types"] or not p["eggs"]]
     if fehlt:
         print("ohne Typ oder Eigruppe:", ", ".join(fehlt))
+    print(f'{sum(1 for p in liste if not p["places"])} Pokémon ohne Fundort (nur Entwicklung)')
 
 
 if __name__ == "__main__":

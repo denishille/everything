@@ -142,32 +142,35 @@
   const HINTS = [
     { key: 'num', lbl: 'Nummer' },
     { key: 'types', lbl: 'Typ', wide: true },
-    { key: 'total', lbl: 'Werte' },
-    { key: 'hp', lbl: 'KP' },
-    { key: 'atk', lbl: 'Angriff' },
-    { key: 'def', lbl: 'Verteidigung' },
-    { key: 'spe', lbl: 'Initiative' },
+    { key: 'places', lbl: 'Fundort', wide: true },
+    { key: 'habitat', lbl: 'Lebensraum' },
+    { key: 'color', lbl: 'Farbe' },
     { key: 'height', lbl: 'Größe' },
     { key: 'weight', lbl: 'Gewicht' },
-    { key: 'color', lbl: 'Farbe' },
-    { key: 'habitat', lbl: 'Lebensraum' },
   ];
-  const summe = p => p.stats.hp + p.stats.atk + p.stats.def + p.stats.spa + p.stats.spd + p.stats.spe;
   const pfeil = (g, s) => g === s ? '✓' : s > g ? '↑' : '↓';
 
   function zahlZelle(gv, sv, text) {
     return { cls: gv === sv ? 'ok' : 'miss', html: esc(text), arrow: pfeil(gv, sv) };
   }
+  // Mehrere Werte als Chips, gemeinsame zuerst und hervorgehoben
+  function chipZelle(gWerte, sWerte, leer, zeigen = 3) {
+    if (!gWerte.length) return { cls: sWerte.length ? 'miss' : 'ok', html: `<div class="chips"><span class="chip">${esc(leer)}</span></div>` };
+    const gleich = gWerte.filter(x => sWerte.includes(x));
+    const sortiert = gleich.concat(gWerte.filter(x => !gleich.includes(x)));
+    const rest = sortiert.length - zeigen;
+    const chips = sortiert.slice(0, zeigen)
+      .map(x => `<span class="chip${gleich.includes(x) ? ' hit' : ''}">${esc(x)}</span>`).join('')
+      + (rest > 0 ? `<span class="chip">+${rest}</span>` : '');
+    const deckungsgleich = gleich.length === gWerte.length && gleich.length === sWerte.length;
+    return { cls: deckungsgleich ? 'ok' : 'miss', html: `<div class="chips">${chips}</div>` };
+  }
+
   function evalFind(g, s) {
     const out = {};
     out.num = zahlZelle(g.id, s.id, '#' + g.id);
-    const gleich = g.types.filter(t => s.types.includes(t));
-    out.types = {
-      cls: gleich.length === g.types.length && gleich.length === s.types.length ? 'ok' : 'miss',
-      html: '<div class="chips">' + g.types.map(t => `<span class="chip${gleich.includes(t) ? ' hit' : ''}">${esc(t)}</span>`).join('') + '</div>',
-    };
-    out.total = zahlZelle(summe(g), summe(s), nf0.format(summe(g)));
-    for (const k of ['hp', 'atk', 'def', 'spe']) out[k] = zahlZelle(g.stats[k], s.stats[k], nf0.format(g.stats[k]));
+    out.types = chipZelle(g.types, s.types, '–', 2);
+    out.places = chipZelle(g.places, s.places, 'nur Entwicklung');
     out.height = zahlZelle(g.height, s.height, nf1.format(g.height) + ' m');
     out.weight = zahlZelle(g.weight, s.weight, nf1.format(g.weight) + ' kg');
     out.color = { cls: g.color === s.color ? 'ok' : 'miss', html: esc(g.color) };
@@ -229,7 +232,7 @@
       <div class="facts">
         <span>#${s.id}</span><span>${esc(s.genus)}</span><span>${esc(s.types.join(' · '))}</span>
         <span>${nf1.format(s.height)} m</span><span>${nf1.format(s.weight)} kg</span>
-        <span>${nf0.format(summe(s))} Werte gesamt</span>
+        <span>${s.places.length ? esc(s.places.slice(0, 4).join(', ')) + (s.places.length > 4 ? ' …' : '') : 'In Gen 1 nur durch Entwicklung'}</span>
       </div>
       <div class="actions">
         ${prev ? `<button class="ghost" id="btn-find-prev">‹ Rätsel #${prev}</button>` : ''}

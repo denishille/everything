@@ -158,8 +158,9 @@ Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
 Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
 
 - **PokeFind** – geheimes Pokémon in 5 Versuchen. Hinweise: Pokédex-Nummer,
-  Typ, Werte gesamt, KP, Angriff, Verteidigung, Initiative, Größe, Gewicht,
-  Farbe, Lebensraum. Pfeile zeigen die Richtung.
+  Typ, Fundort, Lebensraum, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
+  gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
+  aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.
 - **PokeRank** – 8 Runden, aus 11 Kategorien die wählen, in der das Pokémon
   unter allen 150 am weitesten vorn steht. Punkte nach Perzentil wie bei
   GeoRank.
