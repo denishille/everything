@@ -127,15 +127,18 @@
   const findKey = n => 'find.' + n;
   const find = { num: 0, day: 0, secret: null, guesses: [], done: false, won: false };
 
+  // Reihenfolge und Breite so, dass das Raster ohne Löcher aufgeht: erst die
+  // vier Zahlen (je 1 Spalte), dann die vier Wortfelder (je 2). Macht 12
+  // Spalten — volle Reihen auf dem Handy (4 Spalten) wie am Rechner (6).
   const HINTS = [
     { key: 'num', lbl: 'Nummer' },
-    { key: 'types', lbl: 'Typ', wide: true },
-    { key: 'places', lbl: 'Fundort', wide: true },
-    { key: 'habitat', lbl: 'Lebensraum' },
     { key: 'stage', lbl: 'Stufe' },
-    { key: 'color', lbl: 'Farbe' },
     { key: 'height', lbl: 'Größe' },
     { key: 'weight', lbl: 'Gewicht' },
+    { key: 'types', lbl: 'Typ', wide: true },
+    { key: 'places', lbl: 'Fundort', wide: true },
+    { key: 'habitat', lbl: 'Lebensraum', wide: true },
+    { key: 'color', lbl: 'Farbe', wide: true },
   ];
   const pfeil = (g, s) => g === s ? '✓' : s > g ? '↑' : '↓';
 
