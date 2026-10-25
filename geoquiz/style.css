@@ -107,13 +107,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 /* Eingabe -------------------------------------------------------------- */
 .guess-form { display: flex; gap: .6rem; margin: .4rem 0 .8rem; }
 .combo { position: relative; flex: 1; }
-#guess-input, #word-input { width: 100%; font-size: 16px; padding: .9rem 1.4rem; border-radius: var(--pill); border: 1.5px solid transparent; background: var(--surface); color: var(--text); outline: none; transition: background .15s, border-color .15s; }
-#guess-input::placeholder, #word-input::placeholder { color: var(--muted); }
-#guess-input:hover, #word-input:hover { background: var(--surface2); }
-#guess-input:focus, #word-input:focus { background: var(--bg); border-color: var(--text); }
-#guess-input:disabled, #word-input:disabled { background: var(--surface); color: var(--muted); }
-#guess-input::-webkit-search-decoration, #guess-input::-webkit-search-cancel-button, #guess-input::-webkit-search-results-button, #word-input::-webkit-search-decoration, #word-input::-webkit-search-cancel-button, #word-input::-webkit-search-results-button { -webkit-appearance: none; display: none; }
-#guess-input:-webkit-autofill, #guess-input:-webkit-autofill:hover, #guess-input:-webkit-autofill:focus, #word-input:-webkit-autofill, #word-input:-webkit-autofill:hover, #word-input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); }
+#guess-input, #find-input, #play-input, #word-input { width: 100%; font-size: 16px; padding: .9rem 1.4rem; border-radius: var(--pill); border: 1.5px solid transparent; background: var(--surface); color: var(--text); outline: none; transition: background .15s, border-color .15s; }
+#guess-input::placeholder, #find-input::placeholder, #play-input::placeholder, #word-input::placeholder { color: var(--muted); }
+#guess-input:hover, #find-input:hover, #play-input:hover, #word-input:hover { background: var(--surface2); }
+#guess-input:focus, #find-input:focus, #play-input:focus, #word-input:focus { background: var(--bg); border-color: var(--text); }
+#guess-input:disabled, #find-input:disabled, #play-input:disabled, #word-input:disabled { background: var(--surface); color: var(--muted); }
+#guess-input::-webkit-search-decoration, #find-input::-webkit-search-decoration, #play-input::-webkit-search-decoration, #guess-input::-webkit-search-cancel-button, #find-input::-webkit-search-cancel-button, #play-input::-webkit-search-cancel-button, #guess-input::-webkit-search-results-button, #find-input::-webkit-search-results-button, #play-input::-webkit-search-results-button, #word-input::-webkit-search-decoration, #word-input::-webkit-search-cancel-button, #word-input::-webkit-search-results-button { -webkit-appearance: none; display: none; }
+#guess-input:-webkit-autofill, #find-input:-webkit-autofill, #play-input:-webkit-autofill, #guess-input:-webkit-autofill:hover, #find-input:-webkit-autofill:hover, #play-input:-webkit-autofill:hover, #guess-input:-webkit-autofill:focus, #find-input:-webkit-autofill:focus, #play-input:-webkit-autofill:focus, #word-input:-webkit-autofill, #word-input:-webkit-autofill:hover, #word-input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); }
 .suggest { position: absolute; left: .6rem; right: .6rem; top: calc(100% + 6px); z-index: 20; list-style: none; margin: 0; padding: .4rem; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.12); max-height: 300px; overflow-y: auto; }
 .suggest li { padding: .6rem .9rem; border-radius: 10px; display: flex; gap: .6rem; align-items: center; cursor: pointer; font-weight: 500; }
 .suggest li.sel, .suggest li:hover { background: var(--surface); }
@@ -242,6 +242,19 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .rank-row.peer { background: var(--surface); }
 .rank-row.me { background: var(--text); color: #fff; font-weight: 700; }
 .rank-row.me .rank-no, .rank-row.me .rank-val { color: #fff; }
+/* Pokebrudis: Sprites sind 96x96-Pixelbilder, nie weichzeichnen ------- */
+.mini-sprite, .big-sprite, .row-sprite, .icon-btn.poke img { image-rendering: pixelated; display: block; }
+.icon-btn.poke { background: none; }
+.icon-btn.poke img { width: 32px; height: 32px; }
+.icon-btn.poke:hover img { transform: scale(1.08); }
+a.icon-btn { text-decoration: none; }
+.guess-title .mini-sprite { width: 44px; height: 44px; flex-shrink: 0; align-self: center; }
+.big-sprite { width: 160px; height: 160px; margin: 0 auto .6rem; }
+.poke-wrap { width: 160px; max-width: 40%; aspect-ratio: 1; display: grid; place-items: center; background: var(--surface); border-radius: var(--r); box-shadow: none; }
+.poke-wrap .big-sprite { margin: 0; }
+.rs .mini-sprite { width: 44px; height: 44px; flex-shrink: 0; }
+.wrow .row-sprite { width: 32px; height: 32px; display: inline-block; vertical-align: -10px; margin-right: .5rem; }
+
 /* Wordplay ------------------------------------------------------------ */
 .wordlist { display: flex; flex-direction: column; gap: .3rem; }
 
@@ -300,10 +313,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
   .nav-pick { min-width: 0; padding: .45rem 1.9rem .45rem .9rem; background-position: right .7rem center; }
   .nav-pick:not(.nav-filter) { min-width: 108px; }
 
-  /* Wordplay: drei Elemente nebeneinander lassen dem Eingabefeld zu wenig Platz */
-  #word-form { flex-wrap: wrap; }
-  #word-form .combo { flex-basis: 100%; }
-  #word-form .primary, #word-form .ghost { flex: 1; padding-left: 1rem; padding-right: 1rem; }
+  /* Wordplay und PokePlay: drei Elemente nebeneinander lassen dem Eingabefeld
+     zu wenig Platz, also Feld oben, Knöpfe darunter */
+  #word-form, #play-form { flex-wrap: wrap; }
+  #word-form .combo, #play-form .combo { flex-basis: 100%; }
+  #word-form .primary, #word-form .ghost,
+  #play-form .primary, #play-form .ghost { flex: 1; padding-left: 1rem; padding-right: 1rem; }
 
   /* GeoRankle: Flagge, Name und die 8 Kategorien nach dem Scrollen auf einen Blick */
   .rankle-status { margin-bottom: .8rem; }

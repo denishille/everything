@@ -34,6 +34,8 @@ for _name, _mime in (("apple-touch-icon.png", "image/png"), ("icon-512.png", "im
         _uri = "data:%s;base64,%s" % (_mime, base64.b64encode(open(_path, "rb").read()).decode())
         html = html.replace('href="%s"' % _name, 'href="%s"' % _uri)
 html = re.sub(r'\n\s*<link rel="manifest"[^>]*>', "", html)
+# Pokebrudis ist eine eigene Seite und in der Einzeldatei nicht erreichbar
+html = re.sub(r'\n\s*<a class="icon-btn poke".*?</a>', "", html, flags=re.S)
 
 html = html.replace('<link rel="stylesheet" href="style.css">', "<style>\n" + read("style.css") + "\n</style>")
 html = html.replace('<script src="data.js"></script>', "<script>\n" + read("data.js") + "\n</script>")

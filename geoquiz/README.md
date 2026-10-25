@@ -150,6 +150,41 @@ python3 tools/build_words.py --model de_core_news_lg-3.7.0-py3-none-any.whl \
     --tabu /tmp/bad-words-de.txt --out words.js
 ```
 
+## Pokebrudis
+
+Unter `poke/` liegt dieselbe Idee mit den ersten 150 Pokémon: **PokeFind**,
+**PokeRank** und **PokePlay**, gleiche Optik, gleiche Rätselnummern, eigener
+Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
+Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
+
+- **PokeFind** – geheimes Pokémon in 5 Versuchen. Hinweise: Pokédex-Nummer,
+  Typ, Werte gesamt, KP, Angriff, Verteidigung, Initiative, Größe, Gewicht,
+  Farbe, Lebensraum. Pfeile zeigen die Richtung.
+- **PokeRank** – 8 Runden, aus 11 Kategorien die wählen, in der das Pokémon
+  unter allen 150 am weitesten vorn steht. Punkte nach Perzentil wie bei
+  GeoRank.
+- **PokePlay** – nach Ähnlichkeit raten, mit Tipp und Auflösen wie Wordplay.
+  Die Ähnlichkeit ist hier keine Statistik aus Texten, sondern eine Formel
+  aus den Pokémon-Daten: Typ zählt am meisten, dann Basiswerte und
+  Entwicklungsreihe, dazu Eigruppe, Größe, Gewicht, Farbe und Lebensraum.
+  Zu Glumanda liegen damit Glutexo und Glurak vorn, dann Vulpix und Magmar.
+
+`poke/data.js` (76 KB) und die 150 Sprites in `poke/sprites/` (604 KB) kommen
+aus [PokeAPI](https://pokeapi.co) (CC BY-NC-SA). Deutsche Namen, Typen und
+Farben stehen dort direkt in den Tabellen:
+
+```bash
+git clone --depth 1 https://github.com/PokeAPI/pokeapi /tmp/pokeapi
+python3 tools/build_poke.py --csv /tmp/pokeapi/data/v2/csv --out poke/data.js
+
+# Sprites (96×96, zusammen gut 600 KB)
+seq 1 150 | xargs -P 8 -I{} curl -sSL -o poke/sprites/{}.png \
+    https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{}.png
+```
+
+`tools/build_single.py` baut nur Geobrudis zur Einzeldatei; Pokebrudis
+braucht seinen Ordner.
+
 ## Hosten (Cloudflare Pages)
 
 Kein Build nötig, alles ist statisch. Zwei Wege:

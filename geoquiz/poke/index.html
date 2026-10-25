@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Pokebrudis</title>
+<meta name="description" content="Drei tägliche Pokémon-Rätsel: Errate das geheime Pokémon, finde seine stärkste Kategorie und das gesuchte Pokémon nach Ähnlichkeit.">
+<link rel="icon" href="sprites/4.png" sizes="96x96">
+<link rel="apple-touch-icon" href="sprites/4.png">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-title" content="Pokebrudis">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="brand-text">Pokebrudis</span></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="find" role="tab">PokeFind</button>
+    <button class="tab" data-view="rank" role="tab">PokeRank</button>
+    <button class="tab" data-view="play" role="tab">PokePlay</button>
+  </nav>
+  <div class="top-actions">
+    <a class="icon-btn" href="../" title="Zu Geobrudis" aria-label="Zu Geobrudis"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15 0 18M12 3c-2.5 2.7-2.5 15 0 18"/></svg></a>
+    <button class="icon-btn" id="btn-stats" title="Statistik" aria-label="Statistik"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= PokeFind ================= -->
+  <section id="view-find" class="view active">
+    <div class="view-head">
+      <div>
+        <h1 class="display"><span id="find-num" class="num"></span>PokeFind</h1>
+        <p class="sub">Errate das geheime Pokémon in 5 Versuchen.</p>
+      </div>
+      <div class="nav" aria-label="Rätsel-Navigation">
+        <select class="nav-pick nav-filter" id="find-filter" aria-label="Filter">
+          <option value="all">Alle</option>
+          <option value="solved">Gelöst</option>
+          <option value="open">Ungelöst</option>
+        </select>
+        <button class="nav-btn" id="find-prev" aria-label="Vorheriges Rätsel">‹</button>
+        <select class="nav-pick" id="find-pick" aria-label="Rätsel wählen"></select>
+        <button class="nav-btn" id="find-next" aria-label="Nächstes Rätsel">›</button>
+      </div>
+    </div>
+
+    <form id="find-form" class="guess-form" autocomplete="off" role="search">
+      <div class="combo">
+        <input id="find-input" type="search" name="q" placeholder="Pokémon eingeben …" aria-label="Tipp" role="combobox" aria-autocomplete="list" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
+        <ul id="find-suggest" class="suggest" hidden></ul>
+      </div>
+      <button type="submit" class="primary" id="find-btn">Raten</button>
+    </form>
+    <div class="legend">
+      <span><i class="sq ok"></i> Schwarz = richtig</span>
+      <span><i class="sq miss"></i> Grau = daneben</span>
+    </div>
+
+    <div id="find-result" class="result" hidden></div>
+
+    <div id="find-guesses" class="guesses"></div>
+  </section>
+
+  <!-- ================= PokeRank ================= -->
+  <section id="view-rank" class="view">
+    <div class="view-head">
+      <div>
+        <h1 class="display"><span id="rank-num" class="num"></span>PokeRank</h1>
+        <p class="sub">In welcher Kategorie steht das Pokémon unter allen 150 am weitesten vorn?</p>
+      </div>
+      <div class="nav" aria-label="Rätsel-Navigation">
+        <select class="nav-pick nav-filter" id="rank-filter" aria-label="Filter">
+          <option value="all">Alle</option>
+          <option value="solved">Gelöst</option>
+          <option value="open">Ungelöst</option>
+        </select>
+        <button class="nav-btn" id="rank-prev" aria-label="Vorheriges Rätsel">‹</button>
+        <select class="nav-pick" id="rank-pick" aria-label="Rätsel wählen"></select>
+        <button class="nav-btn" id="rank-next" aria-label="Nächstes Rätsel">›</button>
+      </div>
+    </div>
+
+    <div id="rank-board">
+      <div class="rankle-status">
+        <div class="rounds" id="rank-rounds"></div>
+        <div class="score"><strong id="rank-score">0</strong>/ 800 Punkte</div>
+      </div>
+
+      <div class="flag-card">
+        <div class="flag-wrap poke-wrap" id="rank-sprite"></div>
+        <div class="flag-meta">
+          <h2 id="rank-name" class="display"></h2>
+          <p class="muted" id="rank-sub"></p>
+        </div>
+      </div>
+
+      <div id="rank-grid" class="cat-grid"></div>
+    </div>
+
+    <div id="rank-result" class="result" hidden></div>
+  </section>
+
+  <!-- ================= PokePlay ================= -->
+  <section id="view-play" class="view">
+    <div class="view-head">
+      <div>
+        <h1 class="display"><span id="play-num" class="num"></span>PokePlay</h1>
+        <p class="sub">Errate das Pokémon. Je kleiner die Zahl, desto ähnlicher ist dein Tipp.</p>
+      </div>
+      <div class="nav" aria-label="Rätsel-Navigation">
+        <select class="nav-pick nav-filter" id="play-filter" aria-label="Filter">
+          <option value="all">Alle</option>
+          <option value="solved">Gelöst</option>
+          <option value="open">Ungelöst</option>
+        </select>
+        <button class="nav-btn" id="play-prev" aria-label="Vorheriges Rätsel">‹</button>
+        <select class="nav-pick" id="play-pick" aria-label="Rätsel wählen"></select>
+        <button class="nav-btn" id="play-next" aria-label="Nächstes Rätsel">›</button>
+      </div>
+    </div>
+
+    <form id="play-form" class="guess-form" autocomplete="off" role="search">
+      <div class="combo">
+        <input id="play-input" type="search" name="p" placeholder="Pokémon eingeben …" aria-label="Pokémon" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
+      </div>
+      <button type="submit" class="primary" id="play-btn">Raten</button>
+      <button type="button" class="ghost" id="play-tip">Tipp</button>
+      <button type="button" class="ghost" id="play-give">Auflösen</button>
+    </form>
+
+    <div id="play-list" class="wordlist"></div>
+
+    <div id="play-result" class="result" hidden></div>
+  </section>
+</main>
+
+<!-- Modals -->
+<div class="modal" id="modal-stats" hidden>
+  <div class="modal-box">
+    <button class="modal-close" data-close>✕</button>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
