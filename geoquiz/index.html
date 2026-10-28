@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Geobrudis</title>
-<meta name="description" content="Vier tägliche Rätsel: Errate das geheime Land, den Spitzenplatz eines Landes, die Flagge — und bei Wordplay das gesuchte Wort. Dazu Pokebrudis mit den ersten 150 Pokémon.">
+<meta name="description" content="Vier tägliche Geografie-Rätsel: Errate das geheime Land, den Spitzenplatz eines Landes, die Flagge und die Lage deutscher Städte.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="apple-touch-icon.png" sizes="180x180">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -30,11 +30,10 @@
     <button class="tab active" data-view="daily" role="tab">GeoFind</button>
     <button class="tab" data-view="rankle" role="tab">GeoRank</button>
     <button class="tab" data-view="flag" role="tab">GeoFlag</button>
-    <button class="tab" data-view="word" role="tab">Wordplay</button>
     <button class="tab" data-view="map" role="tab">GeoMap</button>
   </nav>
   <div class="top-actions">
-    <a class="icon-btn poke" href="poke/" title="Zu Pokebrudis" aria-label="Zu Pokebrudis"><img src="poke/sprites/4.png" alt="" width="96" height="96"></a>
+    <a class="icon-btn poke" href="poke/" title="Weiter zu Pokebrudis" aria-label="Weiter zu Pokebrudis"><img src="poke/sprites/4.png" alt="" width="96" height="96"></a>
     <button class="icon-btn" id="btn-stats" title="Statistik" aria-label="Statistik"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></button>
   </div>
 </header>
@@ -188,38 +187,6 @@
     <div id="map-result" class="result" hidden></div>
   </section>
 
-  <!-- ================= Wordplay ================= -->
-  <section id="view-word" class="view">
-    <div class="view-head">
-      <div>
-        <h1 class="display"><span id="word-num" class="num"></span>Wordplay</h1>
-        <p class="sub">Errate das Wort. Je kleiner die Zahl, desto näher die Bedeutung.</p>
-      </div>
-      <div class="nav" aria-label="Rätsel-Navigation">
-        <select class="nav-pick nav-filter" id="word-filter" aria-label="Filter">
-          <option value="all">Alle</option>
-          <option value="solved">Gelöst</option>
-          <option value="open">Ungelöst</option>
-        </select>
-        <button class="nav-btn" id="word-prev" aria-label="Vorheriges Rätsel">‹</button>
-        <select class="nav-pick" id="word-pick" aria-label="Rätsel wählen"></select>
-        <button class="nav-btn" id="word-next" aria-label="Nächstes Rätsel">›</button>
-      </div>
-    </div>
-
-    <form id="word-form" class="guess-form" autocomplete="off" role="search">
-      <div class="combo">
-        <input id="word-input" type="search" name="w" placeholder="lädt …" aria-label="Wort" disabled autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" data-lpignore="true" data-1p-ignore data-form-type="other">
-      </div>
-      <button type="submit" class="primary" id="word-btn" disabled>Raten</button>
-      <button type="button" class="ghost" id="word-tip" disabled>Tipp</button>
-      <button type="button" class="ghost" id="word-give" disabled>Auflösen</button>
-    </form>
-
-    <div id="word-list" class="wordlist"></div>
-
-    <div id="word-result" class="result" hidden></div>
-  </section>
 </main>
 
 <!-- Modals -->

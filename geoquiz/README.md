@@ -1,8 +1,17 @@
-# GeoQuiz – Land des Tages & GeoRankle
+# GeoQuiz – tägliche Rätsel
 
-Fünf tägliche Rätsel als reine Browser-App (HTML/CSS/JS, kein Build, kein
-Server, keine Abhängigkeiten). Nachbau von trivi.gg „Daily Country“, Geotrivia
-„GeoRankle“ und contexto.me, dazu GeoMap.
+Reine Browser-App (HTML/CSS/JS, kein Build, kein Server, keine
+Abhängigkeiten) in drei Bereichen. Der Knopf oben rechts schaltet im Kreis
+weiter, eine Navigation gibt es bewusst nicht:
+
+| Bereich | Ordner | Spiele | Knopf führt zu |
+|---|---|---|---|
+| **Geobrudis** | `/` | GeoFind, GeoRank, GeoFlag, GeoMap | Pokebrudis |
+| **Pokebrudis** | `poke/` | PokeFind, PokePlay | Spielbrudis |
+| **Spielbrudis** | `spiele/` | Wordplay | Geobrudis |
+
+Nachbau von trivi.gg „Daily Country“, Geotrivia „GeoRankle“ und contexto.me,
+dazu GeoMap.
 
 ## Spielen
 
@@ -36,7 +45,7 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   bevorzugt vom selben Kontinent mit ähnlichen Flaggenfarben.
 - Sofortige Rückmeldung, Ergebnis mit allen zehn Flaggen, Statistik.
 
-## Wordplay
+## Wordplay (unter `spiele/`)
 
 - Nachbau von contexto.me: ein gesuchtes Wort, beliebig viele Versuche.
 - Jeder Tipp bekommt einen Rang. 1 ist das gesuchte Wort, 10.000 das am
@@ -214,8 +223,8 @@ seq 1 150 | xargs -P 8 -I{} curl -sSL -o poke/sprites/{}.png \
     https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{}.png
 ```
 
-`tools/build_single.py` baut nur Geobrudis zur Einzeldatei; Pokebrudis
-braucht seinen Ordner.
+`tools/build_single.py` baut nur Geobrudis zur Einzeldatei; Pokebrudis und
+Spielbrudis brauchen ihre Ordner.
 
 ## Hosten (Cloudflare Pages)
 
@@ -225,4 +234,4 @@ Kein Build nötig, alles ist statisch. Zwei Wege:
    Production-Branch `main`, Build-Befehl leer lassen, Build-Output-Verzeichnis
    `geoquiz`. Jeder Push auf `main` deployt automatisch.
 2. **Einzeldatei:** `python3 tools/build_single.py` erzeugt `geoquiz.html` mit
-   allem drin. Diese Datei als `index.html` per Direct Upload hochladen.
+   den vier Geo-Spielen drin. Diese Datei als `index.html` per Direct Upload hochladen.
