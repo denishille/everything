@@ -1019,6 +1019,7 @@
         karte.zeichnen();
       },
       zuruecksetzen() { vb.x = 0; vb.y = 0; vb.w = MAPW; karte.anwenden(); },
+      zoom: () => vb.w / MAPW,
       punkt(e) {                                   // Bildschirm- → Kartenpunkt
         const r = svg.getBoundingClientRect();
         return { x: vb.x + (e.clientX - r.left) / r.width * vb.w,
@@ -1030,6 +1031,8 @@
       vb.x = p.x - (p.x - vb.x) * f;
       vb.y = p.y - (p.y - vb.y) * f;
       vb.w *= f;
+      // beim Rauszoomen den letzten Rest überspringen, sonst klebt man knapp drin
+      if (f > 1 && vb.w > MAPW * 0.88) { vb.w = MAPW; vb.x = 0; vb.y = 0; }
       karte.anwenden();
     };
     const schieben = (dx, dy, r) => {
@@ -1043,6 +1046,11 @@
       zoomen(karte.punkt(e), e.deltaY > 0 ? 1.2 : 1 / 1.2);
     }, { passive: false });
     svg.addEventListener('dblclick', karte.zuruecksetzen);
+    // Ohne diesen Listener verschluckt Chrome die Zwei-Finger-Geste, solange
+    // touch-action noch pan-y ist — dann liesse sich gar nicht erst reinzoomen.
+    svg.addEventListener('touchmove', e => {
+      if (e.touches.length >= 2 || gezoomt()) e.preventDefault();
+    }, { passive: false });
 
     const zeiger = new Map();
     let weg = 0;
@@ -1073,9 +1081,17 @@
       if (e.pointerType !== 'touch' || gezoomt()) schieben(e.clientX - alt.x, e.clientY - alt.y, r);
       zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
     });
+    let letzterTipp = 0, letzterOrt = null;
     svg.addEventListener('pointerup', e => {
-      if (zeiger.size === 1 && weg < 8 && tippen) tippen(karte.punkt(e));
+      const einzeln = zeiger.size === 1 && weg < 12;
       zeiger.delete(e.pointerId);
+      if (!einzeln) return;
+      const jetzt = Date.now();
+      const doppelt = jetzt - letzterTipp < 350 && letzterOrt
+        && Math.hypot(e.clientX - letzterOrt.x, e.clientY - letzterOrt.y) < 28;
+      letzterTipp = jetzt; letzterOrt = { x: e.clientX, y: e.clientY };
+      if (doppelt && gezoomt()) { letzterTipp = 0; karte.zuruecksetzen(); return; }
+      if (tippen) tippen(karte.punkt(e));
     });
     svg.addEventListener('pointercancel', e => zeiger.delete(e.pointerId));
     karte.anwenden();
@@ -1192,6 +1208,27 @@
     store.set('mapStats', st);
   }
 
+  // Marke unter dem Finger: Stadt oder eigener Tipp, sonst nichts
+  function naechsteMarke(p) {
+    const grenze = 40 * gmap.ergebnisKarte.zoom();
+    let nah = null, nahD = Infinity;
+    gmap.placed.forEach((g, i) => {
+      const c = mapCity(i);
+      const d = Math.min(Math.hypot(p.x - toX(c.lo), p.y - toY(c.la)),
+                         Math.hypot(p.x - toX(g.lo), p.y - toY(g.la)));
+      if (d < nahD) { nahD = d; nah = i; }
+    });
+    return nahD <= grenze ? nah : null;
+  }
+
+  function mapWaehlen(i, vonKarte) {
+    gmap.sel = i === null || i === gmap.sel ? null : i;
+    $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
+    gmap.ergebnisKarte.zeichnen();
+    const zeile = gmap.sel == null ? null : $(`#map-result .rs[data-i="${gmap.sel}"]`);
+    if (vonKarte && zeile) zeile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
   function renderMapResult() {
     const box = $('#map-result');
     if (gmap.placed.length < MAP_ROUNDS || gmap.reveal) { box.hidden = true; return; }
@@ -1202,7 +1239,7 @@
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
       <div class="map-wrap" id="map-res-wrap"></div>
-      <p class="muted map-tipp">Großer Punkt = die Stadt, kleiner = dein Tipp. Grün = nah dran, rot = weit daneben. Stadt antippen, dann zeigt die Karte nur sie.</p>
+      <p class="muted map-tipp">Großer Punkt = die Stadt, kleiner = dein Tipp. Grün = nah dran, rot = weit daneben. Auf der Karte oder in der Liste antippen zeigt nur eine Stadt.</p>
       <div class="rs-list">${gmap.placed.map((p, i) => {
         const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
         return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>
@@ -1213,13 +1250,9 @@
         ${next ? `<button class="ghost" id="btn-map-next">Rätsel #${next} ›</button>` : ''}
       </div>`;
     box.hidden = false;
-    gmap.ergebnisKarte = karteBauen($('#map-res-wrap'), 'Karte mit allen Tipps', ergebnisMarker, null);
-    $$('#map-result .rs').forEach(el => el.addEventListener('click', () => {
-      const i = +el.dataset.i;
-      gmap.sel = gmap.sel === i ? null : i;
-      $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
-      gmap.ergebnisKarte.zeichnen();
-    }));
+    gmap.ergebnisKarte = karteBauen($('#map-res-wrap'), 'Karte mit allen Tipps', ergebnisMarker,
+      p => mapWaehlen(naechsteMarke(p), true));
+    $$('#map-result .rs').forEach(el => el.addEventListener('click', () => mapWaehlen(+el.dataset.i, false)));
     const bp = $('#btn-map-prev'); if (bp) bp.addEventListener('click', () => { loadMap(prev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     const bn = $('#btn-map-next'); if (bn) bn.addEventListener('click', () => { loadMap(next); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }

@@ -267,7 +267,7 @@ button.rs:hover { background: var(--surface2); }
 button.rs.sel { box-shadow: inset 0 0 0 2px var(--text); }
 .map-actions { display: flex; justify-content: center; margin-top: 1.2rem; }
 .result .map-wrap { margin: 1.2rem auto; }
-.result .map-wrap svg { cursor: default; }
+.result .map-wrap svg { cursor: pointer; }
 .result .map-land path { fill: var(--bg); stroke: var(--surface2); }   /* heller Grund im Ergebniskasten */
 
 /* Pokebrudis: Sprites sind 96x96-Pixelbilder, nie weichzeichnen ------- */
