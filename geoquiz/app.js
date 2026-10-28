@@ -1097,9 +1097,9 @@
       if (!gmap.reveal || nurLetzte) {
         const c = mapCity(i), f = kmFarbe(mapKm(i));
         teile.push(`<line class="map-line" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-pin" style="fill:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
-        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`);
+        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(12 * z).toFixed(1)}"/>`);
+        teile.push(`<circle class="map-guess" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
+        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 24 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`);
       }
     });
     if (!gmap.reveal && gmap.pin) {
@@ -1114,9 +1114,9 @@
       const c = mapCity(i), f = kmFarbe(mapKm(i));
       const cls = gmap.sel == null ? '' : gmap.sel === i ? ' on' : ' off';
       return `<line class="map-line${cls}" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
-        + `<circle class="map-pin${cls}" style="fill:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 11 : 9) * z).toFixed(1)}"/>`
-        + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 8 : 6) * z).toFixed(1)}"/>`
-        + (gmap.sel === i ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>` : '');
+        + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 14 : 12) * z).toFixed(1)}"/>`
+        + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 7.5 : 6) * z).toFixed(1)}"/>`
+        + (gmap.sel === i ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 24 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>` : '');
     }).join('');
   }
 
@@ -1202,7 +1202,7 @@
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
       <div class="map-wrap" id="map-res-wrap"></div>
-      <p class="muted map-tipp">Grün = nah dran, rot = weit daneben. Stadt antippen, dann zeigt die Karte nur sie.</p>
+      <p class="muted map-tipp">Großer Punkt = die Stadt, kleiner = dein Tipp. Grün = nah dran, rot = weit daneben. Stadt antippen, dann zeigt die Karte nur sie.</p>
       <div class="rs-list">${gmap.placed.map((p, i) => {
         const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
         return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>

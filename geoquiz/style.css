@@ -256,8 +256,10 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-line { stroke: var(--text); stroke-width: 3; stroke-dasharray: 9 7; vector-effect: non-scaling-stroke; }
 .map-pin { fill: var(--volt); stroke: var(--text); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
 .map-true { fill: var(--text); }
+/* der eigene Tipp: klein und in seiner Entfernungsfarbe, nur weiss abgesetzt */
+.map-guess { fill: var(--bg); stroke-width: 3; vector-effect: non-scaling-stroke; }
 .map-label { font-weight: 700; text-anchor: middle; fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 6px; vector-effect: non-scaling-stroke; }
-.map-line.off, .map-pin.off, .map-true.off { opacity: .15; }
+.map-line.off, .map-pin.off, .map-true.off, .map-guess.off { opacity: .15; }
 .map-reset { position: absolute; top: .5rem; right: .5rem; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--bg); color: var(--text); font-size: 1.1rem; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
 .map-tipp { text-align: center; font-size: .82rem; margin: .2rem 0 1rem; }
 button.rs { width: 100%; border: 0; text-align: left; font: inherit; }

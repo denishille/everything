@@ -81,10 +81,11 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 - 8 Runden, je eine deutsche Großstadt. Auf die Karte tippen, „Setzen“, dann
   zeigt die Karte den richtigen Ort und die Luftlinie.
 - Punkte linear nach Entfernung: 100 am Punkt, 0 ab 250 km. Maximum 800.
-- Die Luftlinie ist nach Entfernung eingefärbt: grün am Ziel, bernstein in der
-  Mitte, rot ab 250 km. Dein Pin trägt dieselbe Farbe, der richtige Ort bleibt
-  schwarz. In der Auswertung hat die Punktzahl jeder Zeile die Farbe ihrer
-  Linie.
+- Der große schwarze Punkt ist die gesuchte Stadt, der kleine farbige Ring
+  dein Tipp, dazwischen die Luftlinie.
+- Linie und Ring sind nach Entfernung eingefärbt: grün am Ziel, bernstein in
+  der Mitte, rot ab 250 km. In der Auswertung hat die Punktzahl jeder Zeile
+  die Farbe ihrer Linie.
 - Die Städte sind die 71 kreisfreien Städte ab 100.000 Einwohnern, dazu
   Hannover, Aachen und Saarbrücken (die sind nicht kreisfrei, gehören aber
   dazu). Gezogen wird nach Einwohnerzahl gewichtet — Berlin kommt öfter dran
