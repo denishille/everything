@@ -31,6 +31,7 @@
     <button class="tab" data-view="rankle" role="tab">GeoRank</button>
     <button class="tab" data-view="flag" role="tab">GeoFlag</button>
     <button class="tab" data-view="word" role="tab">Wordplay</button>
+    <button class="tab" data-view="map" role="tab">GeoMap</button>
   </nav>
   <div class="top-actions">
     <a class="icon-btn poke" href="poke/" title="Zu Pokebrudis" aria-label="Zu Pokebrudis"><img src="poke/sprites/4.png" alt="" width="96" height="96"></a>
@@ -152,6 +153,41 @@
     <div id="flag-result" class="result" hidden></div>
   </section>
 
+  <!-- ================= GeoMap ================= -->
+  <section id="view-map" class="view">
+    <div class="view-head">
+      <div>
+        <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
+        <p class="sub">Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.</p>
+      </div>
+      <div class="nav" aria-label="Rätsel-Navigation">
+        <select class="nav-pick nav-filter" id="map-filter" aria-label="Filter">
+          <option value="all">Alle</option>
+          <option value="solved">Gelöst</option>
+          <option value="open">Ungelöst</option>
+        </select>
+        <button class="nav-btn" id="map-prev" aria-label="Vorheriges Rätsel">‹</button>
+        <select class="nav-pick" id="map-pick" aria-label="Rätsel wählen"></select>
+        <button class="nav-btn" id="map-next" aria-label="Nächstes Rätsel">›</button>
+      </div>
+    </div>
+
+    <div id="map-board">
+      <div class="rankle-status">
+        <div class="rounds" id="map-rounds"></div>
+        <div class="score"><strong id="map-score">0</strong>/ 800 Punkte</div>
+      </div>
+      <div class="map-ask">
+        <h2 class="display" id="map-city"></h2>
+        <p class="muted" id="map-hint">Tippe auf die Karte</p>
+      </div>
+      <div class="map-wrap" id="map-wrap"></div>
+      <div class="map-actions"><button class="primary" id="map-set" disabled>Setzen</button></div>
+    </div>
+
+    <div id="map-result" class="result" hidden></div>
+  </section>
+
   <!-- ================= Wordplay ================= -->
   <section id="view-word" class="view">
     <div class="view-head">
@@ -197,6 +233,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="data.js"></script>
+<script src="geomap.js"></script>
 <script src="map.js"></script>
 <script src="app.js"></script>
 </body>

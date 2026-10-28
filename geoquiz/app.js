@@ -174,9 +174,11 @@
   const filters = {
     daily: store.get('dailyFilter', 'all'), rankle: store.get('rankleFilter', 'all'),
     flag: store.get('flagFilter', 'all'), word: store.get('wordFilter', 'all'),
+    map: store.get('mapFilter', 'all'),
   };
   $('#daily-filter').value = filters.daily; $('#rankle-filter').value = filters.rankle;
   $('#flag-filter').value = filters.flag; $('#word-filter').value = filters.word;
+  $('#map-filter').value = filters.map;
 
   $('#daily-prev').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, -1); if (n) loadDaily(n); });
   $('#daily-next').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, 1); if (n) loadDaily(n); });
@@ -924,6 +926,214 @@
   }
 
   // =================================================================
+  //  GEOMAP – Städte auf der Deutschlandkarte platzieren
+  // =================================================================
+  const GM = window.GEO_MAP;
+  const CITIES = GM.staedte;
+  const MAP_ROUNDS = 8;
+  const NULL_KM = 250;                          // ab dieser Luftlinie null Punkte
+  const mapKey = n => 'map.' + n;
+  const gmap = { num: 0, day: 0, cities: [], placed: [], round: 0, reveal: false, pin: null };
+
+  // Projektion: gleichwinklig mit Breitenkorrektur, Zeichenfläche 1000 breit
+  const [LO0, LA0, LO1, LA1] = GM.box;
+  const KLON = Math.cos((LA0 + LA1) / 2 * Math.PI / 180);
+  const MAPW = 1000, SCALE = MAPW / ((LO1 - LO0) * KLON);
+  const MAPH = Math.round((LA1 - LA0) * SCALE);
+  const toX = lo => (lo - LO0) * KLON * SCALE;
+  const toY = la => (LA1 - la) * SCALE;
+  const toLo = x => LO0 + x / (SCALE * KLON);
+  const toLa = y => LA1 - y / SCALE;
+
+  // Umrisse einmal in Pfade übersetzen; die Karte selbst ändert sich nie
+  const MAP_PATHS = GM.laender.flatMap(([, ringe]) => ringe.map(r => {
+    let x = r[0], y = r[1];
+    let d = 'M' + toX(x / GM.q).toFixed(1) + ' ' + toY(y / GM.q).toFixed(1);
+    for (let i = 2; i < r.length; i += 2) {
+      x += r[i]; y += r[i + 1];
+      d += 'L' + toX(x / GM.q).toFixed(1) + ' ' + toY(y / GM.q).toFixed(1);
+    }
+    return d + 'Z';
+  }));
+
+  function luftlinie(a, b) {
+    const R = 6371, rad = d => d * Math.PI / 180;
+    const dla = rad(b.la - a.la), dlo = rad(b.lo - a.lo);
+    const h = Math.sin(dla / 2) ** 2 + Math.cos(rad(a.la)) * Math.cos(rad(b.la)) * Math.sin(dlo / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  const mapPoints = km => Math.round(100 * Math.max(0, 1 - km / NULL_KM));
+  const mapCity = i => CITIES[gmap.cities[i]];
+  const mapKm = i => luftlinie(gmap.placed[i], mapCity(i));
+  const mapScore = () => gmap.placed.reduce((s, _, i) => s + mapPoints(mapKm(i)), 0);
+
+  function loadMap(n) {
+    n = clampPuzzle(n);
+    gmap.num = n; gmap.day = n - 1;
+    store.set('mapLast', n);
+    // Acht Städte des Tages, nach Einwohnerzahl gewichtet gezogen: Berlin kommt
+    // öfter dran als Remscheid, aber jede der 71 kann kommen.
+    const rng = mulberry32(gmap.day * 7919 + 13);
+    const topf = CITIES.map((c, i) => ({ i, gewicht: Math.sqrt(c.p) }));
+    gmap.cities = [];
+    while (gmap.cities.length < MAP_ROUNDS && topf.length) {
+      let ziel = topf.reduce((sum, c) => sum + c.gewicht, 0) * rng();
+      let k = 0;
+      while (k < topf.length - 1 && (ziel -= topf[k].gewicht) > 0) k++;
+      gmap.cities.push(topf.splice(k, 1)[0].i);
+    }
+    gmap.placed = []; gmap.reveal = false; gmap.pin = null;
+    const saved = store.get(mapKey(n), null);
+    if (saved && JSON.stringify(saved.cities) === JSON.stringify(gmap.cities)) {
+      gmap.placed = (saved.placed || []).slice(0, MAP_ROUNDS);
+    }
+    gmap.round = gmap.placed.length;
+    renderMap(true);
+  }
+  const saveMap = () => store.set(mapKey(gmap.num), {
+    day: gmap.day, cities: gmap.cities, placed: gmap.placed,
+    done: gmap.placed.length >= MAP_ROUNDS, won: gmap.placed.length >= MAP_ROUNDS,
+  });
+
+  function markerHtml() {
+    const teile = [];
+    gmap.placed.forEach((p, i) => {
+      const nurLetzte = gmap.reveal && i === gmap.placed.length - 1;
+      if (!gmap.reveal || nurLetzte) {
+        const c = mapCity(i);
+        teile.push(`<line class="map-line" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
+        teile.push(`<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="9"/>`);
+        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="7"/>`);
+        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16).toFixed(1)}">${esc(c.n)}</text>`);
+      }
+    });
+    if (!gmap.reveal && gmap.pin) {
+      teile.push(`<circle class="map-pin" cx="${toX(gmap.pin.lo).toFixed(1)}" cy="${toY(gmap.pin.la).toFixed(1)}" r="9"/>`);
+    }
+    return teile.join('');
+  }
+
+  function renderMap(neuZeichnen) {
+    $('#map-num').textContent = 'Rätsel #' + gmap.num;
+    const liste = fillPicker($('#map-pick'), gmap.num, mapKey, filters.map);
+    $('#map-prev').disabled = !neighbour(liste, gmap.num, -1);
+    $('#map-next').disabled = !neighbour(liste, gmap.num, 1);
+    const fertig = gmap.placed.length >= MAP_ROUNDS && !gmap.reveal;
+    $('#map-board').hidden = fertig;
+    if (!fertig) {
+      $('#map-rounds').innerHTML = Array.from({ length: MAP_ROUNDS }, (_, i) => {
+        const pts = i < gmap.placed.length ? mapPoints(mapKm(i)) : null;
+        const cls = pts == null ? (i === gmap.round ? ' now' : '') : pts >= 70 ? ' g' : pts >= 35 ? ' y' : ' r';
+        return `<span class="round-dot${cls}">${pts == null ? i + 1 : pts}</span>`;
+      }).join('');
+      $('#map-score').textContent = nf0.format(mapScore());
+      if (neuZeichnen || !$('#map-svg')) {
+        $('#map-wrap').innerHTML = `<svg id="map-svg" viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="Karte von Deutschland">
+          <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>
+          <g id="map-marks"></g></svg>`;
+        $('#map-svg').addEventListener('click', mapClick);
+      }
+      $('#map-marks').innerHTML = markerHtml();
+      const i = Math.min(gmap.round, MAP_ROUNDS - 1);
+      if (gmap.reveal) {
+        const km = mapKm(gmap.placed.length - 1), pts = mapPoints(km);
+        $('#map-city').textContent = mapCity(gmap.placed.length - 1).n;
+        $('#map-hint').textContent = `${nf0.format(Math.round(km))} km daneben · ${pts} Punkte`;
+        $('#map-set').textContent = gmap.placed.length >= MAP_ROUNDS ? 'Ergebnis' : 'Weiter';
+        $('#map-set').disabled = false;
+      } else {
+        $('#map-city').textContent = mapCity(i).n;
+        $('#map-hint').textContent = 'Tippe auf die Karte';
+        $('#map-set').textContent = 'Setzen';
+        $('#map-set').disabled = !gmap.pin;
+      }
+    }
+    renderMapResult();
+  }
+
+  function mapClick(e) {
+    if (gmap.reveal || gmap.placed.length >= MAP_ROUNDS) return;
+    const r = $('#map-svg').getBoundingClientRect();
+    gmap.pin = {
+      lo: toLo((e.clientX - r.left) / r.width * MAPW),
+      la: toLa((e.clientY - r.top) / r.height * MAPH),
+    };
+    $('#map-marks').innerHTML = markerHtml();
+    $('#map-set').disabled = false;
+  }
+
+  $('#map-set').addEventListener('click', () => {
+    if (gmap.reveal) {                           // weiter zur nächsten Stadt
+      gmap.reveal = false; gmap.pin = null;
+      gmap.round = gmap.placed.length;
+      if (gmap.round >= MAP_ROUNDS) recordMapStats();
+      renderMap(false);
+      return;
+    }
+    if (!gmap.pin) return;
+    gmap.placed.push(gmap.pin);
+    gmap.reveal = true; gmap.pin = null;
+    saveMap();
+    renderMap(false);
+  });
+
+  function recordMapStats() {
+    const st = store.get('mapStats', { games: 0, sum: 0, best: 0, lastDay: null, streak: 0, maxStreak: 0, done: {} });
+    st.done = st.done || {};
+    if (st.done[gmap.num]) return;
+    st.done[gmap.num] = 1;
+    const t = mapScore();
+    st.games++; st.sum += t; st.best = Math.max(st.best, t);
+    if (gmap.num === maxPuzzle() && st.lastDay !== gmap.day) {
+      st.streak = st.lastDay === gmap.day - 1 ? st.streak + 1 : 1;
+      st.maxStreak = Math.max(st.maxStreak, st.streak);
+      st.lastDay = gmap.day;
+    }
+    store.set('mapStats', st);
+  }
+
+  function renderMapResult() {
+    const box = $('#map-result');
+    if (gmap.placed.length < MAP_ROUNDS || gmap.reveal) { box.hidden = true; return; }
+    const t = mapScore();
+    const urteil = t >= 700 ? 'Ortskundig!' : t >= 500 ? 'Geht doch.' : t >= 300 ? 'Da ist Luft.' : 'Autsch.';
+    const liste = puzzleList(mapKey, filters.map);
+    const prev = neighbour(liste, gmap.num, -1), next = neighbour(liste, gmap.num, 1);
+    const alle = gmap.placed.map((p, i) => {
+      const c = mapCity(i);
+      return `<line class="map-line" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
+        + `<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="8"/>`
+        + `<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="6"/>`;
+    }).join('');
+    box.innerHTML = `
+      <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
+      <div class="map-wrap"><svg viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="Karte mit allen Tipps">
+        <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>${alle}</svg></div>
+      <div class="rs-list">${gmap.placed.map((p, i) => {
+        const c = mapCity(i), km = Math.round(mapKm(i)), pts = mapPoints(mapKm(i));
+        const cls = pts >= 70 ? 'g' : pts >= 35 ? 'y' : 'r';
+        return `<div class="rs"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(km)} km daneben</div>
+          <div class="rs-pts ${cls}">${pts}</div></div>`;
+      }).join('')}</div>
+      <div class="actions">
+        ${prev ? `<button class="ghost" id="btn-map-prev">‹ Rätsel #${prev}</button>` : ''}
+        ${next ? `<button class="ghost" id="btn-map-next">Rätsel #${next} ›</button>` : ''}
+      </div>`;
+    box.hidden = false;
+    const bp = $('#btn-map-prev'); if (bp) bp.addEventListener('click', () => { loadMap(prev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    const bn = $('#btn-map-next'); if (bn) bn.addEventListener('click', () => { loadMap(next); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  }
+
+  $('#map-prev').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, filters.map), gmap.num, -1); if (n) loadMap(n); });
+  $('#map-next').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, filters.map), gmap.num, 1); if (n) loadMap(n); });
+  $('#map-pick').addEventListener('change', e => loadMap(+e.target.value));
+  $('#map-filter').addEventListener('change', e => {
+    filters.map = e.target.value; store.set('mapFilter', filters.map);
+    const liste = puzzleList(mapKey, filters.map);
+    if (liste.length && !liste.includes(gmap.num)) loadMap(liste[0]); else renderMap(true);
+  });
+
+  // =================================================================
   //  WORDPLAY – Wort erraten, der Rang zeigt die Bedeutungsnähe (nach contexto.me)
   // =================================================================
   const wordKey = n => 'word.' + n;
@@ -1216,6 +1426,16 @@
         </div>
         <h2>Verteilung der Versuche</h2>
         <div class="dist">${[1, 2, 3, 4, 5].map(n => `<span>${n}</span><div class="bar${n === hl ? ' hl' : ''}" style="width:${Math.max(7, 100 * (st.dist[n] || 0) / maxD)}%">${st.dist[n] || 0}</div>`).join('')}</div>`;
+    } else if (view === 'map') {
+      const st = store.get('mapStats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
+      el.innerHTML = `<h2>GeoMap – Statistik</h2>
+        <div class="stat-grid">
+          <div><strong>${st.games}</strong><span>Spiele</span></div>
+          <div><strong>${st.games ? Math.round(st.sum / st.games) : 0}</strong><span>Ø Punkte</span></div>
+          <div><strong>${st.best}</strong><span>Bestwert</span></div>
+          <div><strong>${st.streak}</strong><span>Serie</span></div>
+        </div>
+        <p class="muted">Die Serie zählt nur, wenn du das Rätsel des Tages am selben Tag spielst.</p>`;
     } else if (view === 'word') {
       const st = store.get('wordStats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
       el.innerHTML = `<h2>Wordplay – Statistik</h2>
@@ -1255,7 +1475,8 @@
   loadDaily(store.get('dailyLast', null) || undefined);
   loadRankle(store.get('rankleLast', null) || undefined);
   loadFlag(store.get('flagLast', null) || undefined);
-  const startView = { '#rankle': 'rankle', '#flag': 'flag', '#word': 'word' }[location.hash] || 'daily';
+  loadMap(store.get('mapLast', null) || undefined);
+  const startView = { '#rankle': 'rankle', '#flag': 'flag', '#word': 'word', '#map': 'map' }[location.hash] || 'daily';
   setView(startView);
 
   // Tageswechsel bei offener Seite erkennen: neues Rätsel in die Auswahl aufnehmen
@@ -1263,7 +1484,7 @@
   setInterval(() => {
     if (maxPuzzle() !== knownMax) {
       knownMax = maxPuzzle();
-      renderDaily(); renderRankle(); renderFlag(); if (WORDS && word.num) renderWord();
+      renderDaily(); renderRankle(); renderFlag(); renderMap(true); if (WORDS && word.num) renderWord();
       toast('Ein neuer Tag, ein neues Rätsel #' + knownMax + '!');
     }
   }, 30000);

@@ -1,8 +1,8 @@
 # GeoQuiz – Land des Tages & GeoRankle
 
-Vier tägliche Rätsel als reine Browser-App (HTML/CSS/JS, kein Build, kein
+Fünf tägliche Rätsel als reine Browser-App (HTML/CSS/JS, kein Build, kein
 Server, keine Abhängigkeiten). Nachbau von trivi.gg „Daily Country“, Geotrivia
-„GeoRankle“ und contexto.me.
+„GeoRankle“ und contexto.me, dazu GeoMap.
 
 ## Spielen
 
@@ -67,6 +67,18 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 - „Auflösen“ zeigt das Wort (zwei Klicks, der erste fragt nach). Das Rätsel gilt
   dann als erledigt, aber nicht als gelöst, und zählt nicht in der Statistik.
 
+## GeoMap
+
+- 8 Runden, je eine deutsche Großstadt. Auf die Karte tippen, „Setzen“, dann
+  zeigt die Karte den richtigen Ort und die Luftlinie.
+- Punkte linear nach Entfernung: 100 am Punkt, 0 ab 250 km. Maximum 800.
+- Die Städte sind die 71 kreisfreien Städte ab 100.000 Einwohnern, dazu
+  Hannover, Aachen und Saarbrücken (die sind nicht kreisfrei, gehören aber
+  dazu). Gezogen wird nach Einwohnerzahl gewichtet — Berlin kommt öfter dran
+  als Remscheid, drankommen kann jede.
+- Die Karte sind die 16 Bundesländer: Außengrenze plus innere Linien zur
+  Orientierung.
+
 ## Daten neu erzeugen
 
 `data.js` (196 Länder: UN-Mitglieder plus Taiwan und Kosovo) wird aus offenen
@@ -110,6 +122,24 @@ bleibt der Schriftzug. Höhe wird automatisch auf 30 px skaliert (26 px auf dem
 Handy), am besten ein SVG oder ein PNG mit mindestens 120 px Höhe und
 transparentem Hintergrund. `tools/build_single.py` bettet das Logo als
 data-URI in `geoquiz.html` ein.
+`geomap.js` (46 KB: Umrisse und Städte) braucht zwei Quellen:
+
+- [isellsoap/deutschlandGeoJSON](https://github.com/isellsoap/deutschlandGeoJSON) –
+  Umrisse der Bundesländer
+- [jgehrcke/covid-19-germany-gae](https://github.com/jgehrcke/covid-19-germany-gae) –
+  `ags.json`: Name, Lage und Einwohnerzahl je Kreis. Die kreisfreien Städte
+  daraus sind die Städte des Spiels.
+
+```bash
+curl -o /tmp/bundeslaender.geo.json https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/3_mittel.geo.json
+curl -o /tmp/ags.json https://raw.githubusercontent.com/jgehrcke/covid-19-germany-gae/master/ags.json
+
+python3 tools/build_geomap.py --laender /tmp/bundeslaender.geo.json --kreise /tmp/ags.json --out geomap.js
+```
+
+Das Skript prüft zum Schluss, dass jede Stadt im Umriss liegt und die drei
+von Hand ergänzten im richtigen Bundesland — sonst bricht es ab.
+
 `words.js` (22.732 Wörter mit Vektoren, davon 1809 als Rätselwort, dazu rund
 11.000 gebeugte Formen) braucht `pip install spacy numpy` und diese Quellen:
 
