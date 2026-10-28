@@ -930,7 +930,7 @@
   const MAP_ROUNDS = 8;
   const NULL_KM = 250;                          // ab dieser Luftlinie null Punkte
   const mapKey = n => 'map.' + n;
-  const gmap = { num: 0, day: 0, cities: [], placed: [], round: 0, reveal: false, pin: null };
+  const gmap = { num: 0, day: 0, cities: [], placed: [], round: 0, reveal: false, pin: null, sel: null, karte: null, ergebnisKarte: null };
 
   // Projektion: gleichwinklig mit Breitenkorrektur, Zeichenfläche 1000 breit
   const [LO0, LA0, LO1, LA1] = GM.box;
@@ -979,7 +979,7 @@
       while (k < topf.length - 1 && (ziel -= topf[k].gewicht) > 0) k++;
       gmap.cities.push(topf.splice(k, 1)[0].i);
     }
-    gmap.placed = []; gmap.reveal = false; gmap.pin = null;
+    gmap.placed = []; gmap.reveal = false; gmap.pin = null; gmap.sel = null;
     const saved = store.get(mapKey(n), null);
     if (saved && JSON.stringify(saved.cities) === JSON.stringify(gmap.cities)) {
       gmap.placed = (saved.placed || []).slice(0, MAP_ROUNDS);
@@ -992,22 +992,118 @@
     done: gmap.placed.length >= MAP_ROUNDS, won: gmap.placed.length >= MAP_ROUNDS,
   });
 
-  function markerHtml() {
+  // Eine Karte mit Zoom. Rad oder zwei Finger vergrößern, Ziehen verschiebt,
+  // ein Tipp ohne Bewegung setzt den Punkt. Marker bekommen den Zoomfaktor
+  // und rechnen ihre Größe dagegen, damit sie gleich groß bleiben.
+  const MIN_VB = MAPW / 8;                        // höchstens achtfach
+  function karteBauen(ziel, beschriftung, marker, tippen) {
+    ziel.innerHTML = `<svg viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="${beschriftung}">
+        <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>
+        <g class="map-marks"></g></svg>
+      <button type="button" class="map-reset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen" hidden>⟲</button>`;
+    const svg = ziel.querySelector('svg');
+    const marks = ziel.querySelector('.map-marks');
+    const zurueck = ziel.querySelector('.map-reset');
+    const vb = { x: 0, y: 0, w: MAPW, h: MAPH };
+
+    const karte = {
+      zeichnen() { marks.innerHTML = marker(vb.w / MAPW); },
+      anwenden() {
+        vb.w = Math.min(MAPW, Math.max(MIN_VB, vb.w));
+        vb.h = vb.w * MAPH / MAPW;
+        vb.x = Math.min(MAPW - vb.w, Math.max(0, vb.x));
+        vb.y = Math.min(MAPH - vb.h, Math.max(0, vb.y));
+        svg.setAttribute('viewBox', `${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}`);
+        zurueck.hidden = vb.w > MAPW - 1;
+        karte.zeichnen();
+      },
+      zuruecksetzen() { vb.x = 0; vb.y = 0; vb.w = MAPW; karte.anwenden(); },
+      punkt(e) {                                   // Bildschirm- → Kartenpunkt
+        const r = svg.getBoundingClientRect();
+        return { x: vb.x + (e.clientX - r.left) / r.width * vb.w,
+                 y: vb.y + (e.clientY - r.top) / r.height * vb.h };
+      },
+    };
+    const zoomen = (p, f) => {
+      vb.x = p.x - (p.x - vb.x) * f;
+      vb.y = p.y - (p.y - vb.y) * f;
+      vb.w *= f;
+      karte.anwenden();
+    };
+    zurueck.addEventListener('click', karte.zuruecksetzen);
+    svg.addEventListener('wheel', e => {
+      e.preventDefault();
+      zoomen(karte.punkt(e), e.deltaY > 0 ? 1.2 : 1 / 1.2);
+    }, { passive: false });
+    svg.addEventListener('dblclick', karte.zuruecksetzen);
+
+    const zeiger = new Map();
+    let weg = 0;
+    svg.addEventListener('pointerdown', e => {
+      svg.setPointerCapture(e.pointerId);
+      if (!zeiger.size) weg = 0;
+      zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    });
+    svg.addEventListener('pointermove', e => {
+      const alt = zeiger.get(e.pointerId);
+      if (!alt) return;
+      const r = svg.getBoundingClientRect();
+      if (zeiger.size === 2) {
+        const anderer = [...zeiger].find(([id]) => id !== e.pointerId)[1];
+        const vorher = Math.hypot(alt.x - anderer.x, alt.y - anderer.y);
+        const nachher = Math.hypot(e.clientX - anderer.x, e.clientY - anderer.y);
+        zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (vorher > 4 && nachher > 4) {
+          zoomen(karte.punkt({ clientX: (e.clientX + anderer.x) / 2, clientY: (e.clientY + anderer.y) / 2 }), vorher / nachher);
+        }
+        weg = 99;
+        return;
+      }
+      weg += Math.hypot(e.clientX - alt.x, e.clientY - alt.y);
+      if (e.pointerType !== 'touch') {             // am Rechner zieht die Maus die Karte
+        vb.x -= (e.clientX - alt.x) / r.width * vb.w;
+        vb.y -= (e.clientY - alt.y) / r.height * vb.h;
+        karte.anwenden();
+      }
+      zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    });
+    svg.addEventListener('pointerup', e => {
+      if (zeiger.size === 1 && weg < 8 && tippen) tippen(karte.punkt(e));
+      zeiger.delete(e.pointerId);
+    });
+    svg.addEventListener('pointercancel', e => zeiger.delete(e.pointerId));
+    karte.anwenden();
+    return karte;
+  }
+
+  function markerHtml(z) {
     const teile = [];
     gmap.placed.forEach((p, i) => {
       const nurLetzte = gmap.reveal && i === gmap.placed.length - 1;
       if (!gmap.reveal || nurLetzte) {
         const c = mapCity(i);
         teile.push(`<line class="map-line" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="9"/>`);
-        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="7"/>`);
-        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16).toFixed(1)}">${esc(c.n)}</text>`);
+        teile.push(`<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
+        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
+        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`);
       }
     });
     if (!gmap.reveal && gmap.pin) {
-      teile.push(`<circle class="map-pin" cx="${toX(gmap.pin.lo).toFixed(1)}" cy="${toY(gmap.pin.la).toFixed(1)}" r="9"/>`);
+      teile.push(`<circle class="map-pin" cx="${toX(gmap.pin.lo).toFixed(1)}" cy="${toY(gmap.pin.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
     }
     return teile.join('');
+  }
+
+  // Ergebniskarte: die angeklickte Stadt bleibt stehen, der Rest tritt zurück
+  function ergebnisMarker(z) {
+    return gmap.placed.map((p, i) => {
+      const c = mapCity(i);
+      const cls = gmap.sel == null ? '' : gmap.sel === i ? ' on' : ' off';
+      return `<line class="map-line${cls}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
+        + `<circle class="map-pin${cls}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 10 : 8) * z).toFixed(1)}"/>`
+        + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 8 : 6) * z).toFixed(1)}"/>`
+        + (gmap.sel === i ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>` : '');
+    }).join('');
   }
 
   function renderMap(neuZeichnen) {
@@ -1024,13 +1120,10 @@
         return `<span class="round-dot${cls}">${pts == null ? i + 1 : pts}</span>`;
       }).join('');
       $('#map-score').textContent = nf0.format(mapScore());
-      if (neuZeichnen || !$('#map-svg')) {
-        $('#map-wrap').innerHTML = `<svg id="map-svg" viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="Karte von Deutschland">
-          <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>
-          <g id="map-marks"></g></svg>`;
-        $('#map-svg').addEventListener('click', mapClick);
+      if (neuZeichnen || !gmap.karte) {
+        gmap.karte = karteBauen($('#map-wrap'), 'Karte von Deutschland', markerHtml, mapTap);
       }
-      $('#map-marks').innerHTML = markerHtml();
+      gmap.karte.zeichnen();
       const i = Math.min(gmap.round, MAP_ROUNDS - 1);
       if (gmap.reveal) {
         const km = mapKm(gmap.placed.length - 1), pts = mapPoints(km);
@@ -1048,14 +1141,10 @@
     renderMapResult();
   }
 
-  function mapClick(e) {
+  function mapTap(p) {
     if (gmap.reveal || gmap.placed.length >= MAP_ROUNDS) return;
-    const r = $('#map-svg').getBoundingClientRect();
-    gmap.pin = {
-      lo: toLo((e.clientX - r.left) / r.width * MAPW),
-      la: toLa((e.clientY - r.top) / r.height * MAPH),
-    };
-    $('#map-marks').innerHTML = markerHtml();
+    gmap.pin = { lo: toLo(p.x), la: toLa(p.y) };
+    gmap.karte.zeichnen();
     $('#map-set').disabled = false;
   }
 
@@ -1096,27 +1185,28 @@
     const urteil = t >= 700 ? 'Ortskundig!' : t >= 500 ? 'Geht doch.' : t >= 300 ? 'Da ist Luft.' : 'Autsch.';
     const liste = puzzleList(mapKey, filters.map);
     const prev = neighbour(liste, gmap.num, -1), next = neighbour(liste, gmap.num, 1);
-    const alle = gmap.placed.map((p, i) => {
-      const c = mapCity(i);
-      return `<line class="map-line" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
-        + `<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="8"/>`
-        + `<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="6"/>`;
-    }).join('');
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
-      <div class="map-wrap"><svg viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="Karte mit allen Tipps">
-        <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>${alle}</svg></div>
+      <div class="map-wrap" id="map-res-wrap"></div>
+      <p class="muted map-tipp">Stadt antippen, dann zeigt die Karte nur sie.</p>
       <div class="rs-list">${gmap.placed.map((p, i) => {
         const c = mapCity(i), km = Math.round(mapKm(i)), pts = mapPoints(mapKm(i));
         const cls = pts >= 70 ? 'g' : pts >= 35 ? 'y' : 'r';
-        return `<div class="rs"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(km)} km daneben</div>
-          <div class="rs-pts ${cls}">${pts}</div></div>`;
+        return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(km)} km daneben</div>
+          <div class="rs-pts ${cls}">${pts}</div></button>`;
       }).join('')}</div>
       <div class="actions">
         ${prev ? `<button class="ghost" id="btn-map-prev">‹ Rätsel #${prev}</button>` : ''}
         ${next ? `<button class="ghost" id="btn-map-next">Rätsel #${next} ›</button>` : ''}
       </div>`;
     box.hidden = false;
+    gmap.ergebnisKarte = karteBauen($('#map-res-wrap'), 'Karte mit allen Tipps', ergebnisMarker, null);
+    $$('#map-result .rs').forEach(el => el.addEventListener('click', () => {
+      const i = +el.dataset.i;
+      gmap.sel = gmap.sel === i ? null : i;
+      $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
+      gmap.ergebnisKarte.zeichnen();
+    }));
     const bp = $('#btn-map-prev'); if (bp) bp.addEventListener('click', () => { loadMap(prev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     const bn = $('#btn-map-next'); if (bn) bn.addEventListener('click', () => { loadMap(next); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
