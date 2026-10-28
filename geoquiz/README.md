@@ -91,9 +91,10 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   als Remscheid, drankommen kann jede.
 - Die Karte sind die 16 Bundesländer: Außengrenze plus innere Linien zur
   Orientierung.
-- Zoomen: Mausrad oder zwei Finger, ziehen verschiebt den Ausschnitt,
-  Doppelklick oder die Taste ⟲ oben rechts setzt zurück. Ein kurzer Tipp
-  setzt weiterhin den Pin.
+- Zoomen: Mausrad oder zwei Finger, Doppelklick oder die Taste ⟲ oben rechts
+  setzt zurück. Verschieben: mit der Maus immer, am Handy ein Finger, sobald
+  gezoomt ist (ohne Zoom scrollt der Finger weiter die Seite), zwei Finger
+  schieben immer. Ein kurzer Tipp setzt weiterhin den Pin.
 - In der Auswertung lässt sich jede Zeile antippen: die Karte zeigt dann nur
   diese Stadt (Tipp, richtiger Ort, Linie), der Rest wird blass.
 

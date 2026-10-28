@@ -1014,7 +1014,8 @@
         vb.x = Math.min(MAPW - vb.w, Math.max(0, vb.x));
         vb.y = Math.min(MAPH - vb.h, Math.max(0, vb.y));
         svg.setAttribute('viewBox', `${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}`);
-        zurueck.hidden = vb.w > MAPW - 1;
+        zurueck.hidden = !gezoomt();
+        ziel.classList.toggle('zoom', gezoomt());
         karte.zeichnen();
       },
       zuruecksetzen() { vb.x = 0; vb.y = 0; vb.w = MAPW; karte.anwenden(); },
@@ -1024,10 +1025,16 @@
                  y: vb.y + (e.clientY - r.top) / r.height * vb.h };
       },
     };
+    const gezoomt = () => vb.w < MAPW - 1;
     const zoomen = (p, f) => {
       vb.x = p.x - (p.x - vb.x) * f;
       vb.y = p.y - (p.y - vb.y) * f;
       vb.w *= f;
+      karte.anwenden();
+    };
+    const schieben = (dx, dy, r) => {
+      vb.x -= dx / r.width * vb.w;
+      vb.y -= dy / r.height * vb.h;
       karte.anwenden();
     };
     zurueck.addEventListener('click', karte.zuruecksetzen);
@@ -1048,23 +1055,22 @@
       const alt = zeiger.get(e.pointerId);
       if (!alt) return;
       const r = svg.getBoundingClientRect();
-      if (zeiger.size === 2) {
+      if (zeiger.size === 2) {                     // zwei Finger: zoomen und schieben
         const anderer = [...zeiger].find(([id]) => id !== e.pointerId)[1];
         const vorher = Math.hypot(alt.x - anderer.x, alt.y - anderer.y);
         const nachher = Math.hypot(e.clientX - anderer.x, e.clientY - anderer.y);
+        const mx = (e.clientX - alt.x) / 2, my = (e.clientY - alt.y) / 2;   // Weg der Mitte
         zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (vorher > 4 && nachher > 4) {
           zoomen(karte.punkt({ clientX: (e.clientX + anderer.x) / 2, clientY: (e.clientY + anderer.y) / 2 }), vorher / nachher);
         }
+        schieben(mx, my, r);
         weg = 99;
         return;
       }
       weg += Math.hypot(e.clientX - alt.x, e.clientY - alt.y);
-      if (e.pointerType !== 'touch') {             // am Rechner zieht die Maus die Karte
-        vb.x -= (e.clientX - alt.x) / r.width * vb.w;
-        vb.y -= (e.clientY - alt.y) / r.height * vb.h;
-        karte.anwenden();
-      }
+      // Maus zieht immer, ein Finger erst im Zoom – sonst scrollt er die Seite
+      if (e.pointerType !== 'touch' || gezoomt()) schieben(e.clientX - alt.x, e.clientY - alt.y, r);
       zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
     });
     svg.addEventListener('pointerup', e => {

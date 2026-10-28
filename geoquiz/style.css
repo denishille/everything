@@ -249,6 +249,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-wrap { max-width: 460px; margin: 0 auto; position: relative; }
 /* pan-y: senkrecht scrollt weiter die Seite, zwei Finger zoomen die Karte */
 .map-wrap svg { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: pan-y; }
+/* im Zoom gehoert die Geste der Karte: ein Finger schiebt den Ausschnitt */
+.map-wrap.zoom svg { touch-action: none; cursor: grab; }
+.map-wrap.zoom svg:active { cursor: grabbing; }
 .map-land path { fill: var(--surface2); stroke: var(--bg); stroke-width: 2.5; stroke-linejoin: round; }
 .map-line { stroke: var(--text); stroke-width: 3; stroke-dasharray: 9 7; vector-effect: non-scaling-stroke; }
 .map-pin { fill: var(--volt); stroke: var(--text); stroke-width: 2.2; vector-effect: non-scaling-stroke; }

@@ -269,6 +269,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-wrap { max-width: 460px; margin: 0 auto; position: relative; }
 /* pan-y: senkrecht scrollt weiter die Seite, zwei Finger zoomen die Karte */
 .map-wrap svg { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: pan-y; }
+/* im Zoom gehoert die Geste der Karte: ein Finger schiebt den Ausschnitt */
+.map-wrap.zoom svg { touch-action: none; cursor: grab; }
+.map-wrap.zoom svg:active { cursor: grabbing; }
 .map-land path { fill: var(--surface2); stroke: var(--bg); stroke-width: 2.5; stroke-linejoin: round; }
 .map-line { stroke: var(--text); stroke-width: 3; stroke-dasharray: 9 7; vector-effect: non-scaling-stroke; }
 .map-pin { fill: var(--volt); stroke: var(--text); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
@@ -1591,7 +1594,8 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
         vb.x = Math.min(MAPW - vb.w, Math.max(0, vb.x));
         vb.y = Math.min(MAPH - vb.h, Math.max(0, vb.y));
         svg.setAttribute('viewBox', `${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}`);
-        zurueck.hidden = vb.w > MAPW - 1;
+        zurueck.hidden = !gezoomt();
+        ziel.classList.toggle('zoom', gezoomt());
         karte.zeichnen();
       },
       zuruecksetzen() { vb.x = 0; vb.y = 0; vb.w = MAPW; karte.anwenden(); },
@@ -1601,10 +1605,16 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
                  y: vb.y + (e.clientY - r.top) / r.height * vb.h };
       },
     };
+    const gezoomt = () => vb.w < MAPW - 1;
     const zoomen = (p, f) => {
       vb.x = p.x - (p.x - vb.x) * f;
       vb.y = p.y - (p.y - vb.y) * f;
       vb.w *= f;
+      karte.anwenden();
+    };
+    const schieben = (dx, dy, r) => {
+      vb.x -= dx / r.width * vb.w;
+      vb.y -= dy / r.height * vb.h;
       karte.anwenden();
     };
     zurueck.addEventListener('click', karte.zuruecksetzen);
@@ -1625,23 +1635,22 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       const alt = zeiger.get(e.pointerId);
       if (!alt) return;
       const r = svg.getBoundingClientRect();
-      if (zeiger.size === 2) {
+      if (zeiger.size === 2) {                     // zwei Finger: zoomen und schieben
         const anderer = [...zeiger].find(([id]) => id !== e.pointerId)[1];
         const vorher = Math.hypot(alt.x - anderer.x, alt.y - anderer.y);
         const nachher = Math.hypot(e.clientX - anderer.x, e.clientY - anderer.y);
+        const mx = (e.clientX - alt.x) / 2, my = (e.clientY - alt.y) / 2;   // Weg der Mitte
         zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (vorher > 4 && nachher > 4) {
           zoomen(karte.punkt({ clientX: (e.clientX + anderer.x) / 2, clientY: (e.clientY + anderer.y) / 2 }), vorher / nachher);
         }
+        schieben(mx, my, r);
         weg = 99;
         return;
       }
       weg += Math.hypot(e.clientX - alt.x, e.clientY - alt.y);
-      if (e.pointerType !== 'touch') {             // am Rechner zieht die Maus die Karte
-        vb.x -= (e.clientX - alt.x) / r.width * vb.w;
-        vb.y -= (e.clientY - alt.y) / r.height * vb.h;
-        karte.anwenden();
-      }
+      // Maus zieht immer, ein Finger erst im Zoom – sonst scrollt er die Seite
+      if (e.pointerType !== 'touch' || gezoomt()) schieben(e.clientX - alt.x, e.clientY - alt.y, r);
       zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
     });
     svg.addEventListener('pointerup', e => {
