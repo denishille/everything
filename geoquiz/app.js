@@ -1076,14 +1076,22 @@
     return karte;
   }
 
+  // Grün bei kurzer Luftlinie, Bernstein in der Mitte, Rot ab 250 km
+  const MAP_SKALA = [[17, 145, 79], [224, 154, 0], [211, 58, 26]];
+  function kmFarbe(km) {
+    const t = Math.min(1, km / NULL_KM) * 2;
+    const a = MAP_SKALA[t < 1 ? 0 : 1], b = MAP_SKALA[t < 1 ? 1 : 2], f = t < 1 ? t : t - 1;
+    return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(' ')})`;
+  }
+
   function markerHtml(z) {
     const teile = [];
     gmap.placed.forEach((p, i) => {
       const nurLetzte = gmap.reveal && i === gmap.placed.length - 1;
       if (!gmap.reveal || nurLetzte) {
-        const c = mapCity(i);
-        teile.push(`<line class="map-line" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-pin" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
+        const c = mapCity(i), f = kmFarbe(mapKm(i));
+        teile.push(`<line class="map-line" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
+        teile.push(`<circle class="map-pin" style="fill:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
         teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
         if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`);
       }
@@ -1097,10 +1105,10 @@
   // Ergebniskarte: die angeklickte Stadt bleibt stehen, der Rest tritt zurück
   function ergebnisMarker(z) {
     return gmap.placed.map((p, i) => {
-      const c = mapCity(i);
+      const c = mapCity(i), f = kmFarbe(mapKm(i));
       const cls = gmap.sel == null ? '' : gmap.sel === i ? ' on' : ' off';
-      return `<line class="map-line${cls}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
-        + `<circle class="map-pin${cls}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 10 : 8) * z).toFixed(1)}"/>`
+      return `<line class="map-line${cls}" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
+        + `<circle class="map-pin${cls}" style="fill:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 11 : 9) * z).toFixed(1)}"/>`
         + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 8 : 6) * z).toFixed(1)}"/>`
         + (gmap.sel === i ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 16 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>` : '');
     }).join('');
@@ -1188,12 +1196,11 @@
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
       <div class="map-wrap" id="map-res-wrap"></div>
-      <p class="muted map-tipp">Stadt antippen, dann zeigt die Karte nur sie.</p>
+      <p class="muted map-tipp">Grün = nah dran, rot = weit daneben. Stadt antippen, dann zeigt die Karte nur sie.</p>
       <div class="rs-list">${gmap.placed.map((p, i) => {
-        const c = mapCity(i), km = Math.round(mapKm(i)), pts = mapPoints(mapKm(i));
-        const cls = pts >= 70 ? 'g' : pts >= 35 ? 'y' : 'r';
-        return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(km)} km daneben</div>
-          <div class="rs-pts ${cls}">${pts}</div></button>`;
+        const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
+        return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>
+          <div class="rs-pts" style="color:${kmFarbe(km)}">${pts}</div></button>`;
       }).join('')}</div>
       <div class="actions">
         ${prev ? `<button class="ghost" id="btn-map-prev">‹ Rätsel #${prev}</button>` : ''}

@@ -251,7 +251,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-wrap svg { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: pan-y; }
 .map-land path { fill: var(--surface2); stroke: var(--bg); stroke-width: 2.5; stroke-linejoin: round; }
 .map-line { stroke: var(--text); stroke-width: 3; stroke-dasharray: 9 7; vector-effect: non-scaling-stroke; }
-.map-pin { fill: var(--volt); stroke: var(--text); stroke-width: 3.5; vector-effect: non-scaling-stroke; }
+.map-pin { fill: var(--volt); stroke: var(--text); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
 .map-true { fill: var(--text); }
 .map-label { font-weight: 700; text-anchor: middle; fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 6px; vector-effect: non-scaling-stroke; }
 .map-line.off, .map-pin.off, .map-true.off { opacity: .15; }
