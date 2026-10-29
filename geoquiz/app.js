@@ -1246,7 +1246,7 @@
   // Reihenfolge der Ergebnisliste: chronologisch oder nach Punkten.
   // Nochmal auf dasselbe Feld dreht die Richtung um.
   const SORT_NAMEN = { runde: 'Runde', punkte: 'Punkte' };
-  let mapSort = { feld: 'runde', dir: 1 };
+  let mapSort = { feld: 'punkte', dir: -1 };   // ab Werk die schwächste Runde oben
   const mapReihenfolge = () => gmap.placed.map((_, i) => i).sort((a, b) => {
     const v = mapSort.feld === 'runde' ? a - b : mapKm(a) - mapKm(b);
     return v * mapSort.dir || a - b;
