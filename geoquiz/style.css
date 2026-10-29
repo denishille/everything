@@ -285,7 +285,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 button.rs { width: 100%; border: 0; text-align: left; font: inherit; }
 button.rs:hover { background: var(--surface2); }
 button.rs.sel { box-shadow: inset 0 0 0 2px var(--text); }
-.map-actions { display: flex; justify-content: center; margin-top: 1.2rem; }
+/* Setzen klebt unten rechts auf der Karte, damit er auch im Zoom erreichbar
+   bleibt — dort unten liegt Österreich, kein deutscher Ort wird verdeckt. */
+.map-stage { position: relative; max-width: 460px; margin: 0 auto 1.2rem; }
+.map-stage .map-wrap { max-width: none; }
+.map-actions { position: absolute; right: .5rem; bottom: .5rem; display: flex; justify-content: flex-end; }
+.map-actions .primary { padding: .7rem 1.3rem; box-shadow: 0 3px 14px rgba(0,0,0,.22); }
+.map-actions .primary:disabled { background: #cacacb; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .result .map-wrap { margin: 1.2rem auto; }
 .result .map-wrap svg { cursor: pointer; }
 .result .map-land path { fill: var(--bg); stroke: var(--surface2); }   /* heller Grund im Ergebniskasten */

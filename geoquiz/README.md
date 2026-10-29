@@ -79,7 +79,9 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 ## GeoMap
 
 - 8 Runden, je eine deutsche Großstadt. Auf die Karte tippen, „Setzen“, dann
-  zeigt die Karte den richtigen Ort und die Luftlinie.
+  zeigt die Karte den richtigen Ort und die Luftlinie. „Setzen“ klebt unten
+  rechts auf der Karte und bleibt dort auch beim Zoomen — dort unten liegt
+  Österreich, verdeckt wird also keine deutsche Stadt.
 - Punkte linear nach Entfernung: 100 am Punkt, 0 ab 250 km. Maximum 800.
 - Der große schwarze Punkt ist die gesuchte Stadt, der kleine farbige Ring
   dein Tipp, dazwischen die Luftlinie.
