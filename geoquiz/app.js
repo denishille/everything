@@ -1266,12 +1266,12 @@
     });
   }
 
-  function mapWaehlen(i, vonKarte) {
+  // Auswahl gilt für Karte und Liste. Gescrollt wird nicht: wer auf der Karte
+  // tippt, will dort bleiben.
+  function mapWaehlen(i) {
     gmap.sel = i === null || i === gmap.sel ? null : i;
     $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
     gmap.ergebnisKarte.zeichnen();
-    const zeile = gmap.sel == null ? null : $(`#map-result .rs[data-i="${gmap.sel}"]`);
-    if (vonKarte && zeile) zeile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   function renderMapResult() {
@@ -1295,11 +1295,11 @@
       </div>`;
     box.hidden = false;
     gmap.ergebnisKarte = karteBauen($('#map-res-wrap'), 'Karte mit allen Tipps', ergebnisMarker,
-      p => mapWaehlen(naechsteMarke(p), true));
+      p => mapWaehlen(naechsteMarke(p)));
     mapListeZeichnen();
     $('#map-rs').addEventListener('click', e => {
       const el = e.target.closest('.rs');
-      if (el) mapWaehlen(+el.dataset.i, false);
+      if (el) mapWaehlen(+el.dataset.i);
     });
     $('#map-sort').addEventListener('click', e => {
       const b = e.target.closest('.sort-chip');

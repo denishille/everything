@@ -102,8 +102,9 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   Finger schieben immer. Ein kurzer Tipp setzt weiterhin den Pin.
 - In der Auswertung lässt sich jede Zeile antippen, genauso jede Marke auf
   der Karte selbst: die Karte zeigt dann nur diese Stadt (Tipp, richtiger
-  Ort, Linie) und schreibt die Entfernung an den Ort, der Rest wird blass
-  und die Zeile rückt ins Bild. Ein Tipp daneben hebt die Auswahl auf.
+  Ort, Linie) und schreibt die Entfernung an den Ort, der Rest wird blass.
+  Gescrollt wird dabei nicht — wer auf der Karte tippt, bleibt auf der
+  Karte. Ein Tipp daneben hebt die Auswahl auf.
 - Die Ergebnisliste steht ab Werk nach Punkten mit der schwächsten Runde oben
   und lässt sich auf Runde umstellen; nochmal auf dasselbe Feld dreht die
   Richtung um. Bei gleicher Punktzahl entscheidet die
