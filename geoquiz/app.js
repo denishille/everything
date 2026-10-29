@@ -1153,7 +1153,7 @@
         + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 7.5 : 6) * z).toFixed(1)}"/>`
         + (gmap.sel === i
           ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
-            + `<text class="map-label km" style="font-size:${(25 * z).toFixed(1)}px;fill:${f}" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) + 38 * z).toFixed(1)}">${nf0.format(Math.round(mapKm(i)))} km · ${mapPoints(mapKm(i))} P.</text>`
+            + `<text class="map-label km" style="font-size:${(25 * z).toFixed(1)}px;fill:${f}" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) + 38 * z).toFixed(1)}">${nf0.format(Math.round(mapKm(i)))} km</text>`
           : '');
     }).join('');
   }
