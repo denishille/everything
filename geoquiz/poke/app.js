@@ -210,6 +210,7 @@
     input.disabled = find.done; $('#find-btn').disabled = find.done;
     input.value = '';
     input.placeholder = find.done ? (find.won ? 'Gelöst' : 'Nicht gelöst') : 'Pokémon eingeben …';
+    renderDex();
     renderFindResult();
   }
 
@@ -298,6 +299,27 @@
       return m.length && (m[0].score >= 80 || m.length === 1) ? m[0].p : null;
     };
   }
+
+  // ---- Nachschlagliste: alle 150 Pokémon, ein Tipp füllt das Eingabefeld
+  const dex = $('#find-dex'), dexGrid = $('#find-dex-grid');
+  function renderDex() {
+    if (!dex.open) return;
+    dexGrid.innerHTML = MON.map(p => {
+      const schon = find.guesses.includes(p.id);
+      return `<button type="button" class="dex-item${schon ? ' weg' : ''}" data-id="${p.id}"${schon ? ' disabled' : ''}>`
+        + sprite(p, 'mini-sprite')
+        + `<span class="dex-num">#${p.id}</span><span class="dex-name">${esc(p.name)}</span></button>`;
+    }).join('');
+  }
+  dex.addEventListener('toggle', renderDex);
+  dexGrid.addEventListener('click', e => {
+    const b = e.target.closest('.dex-item');
+    if (!b) return;
+    const input = $('#find-input');
+    input.value = BY_ID[+b.dataset.id].name;
+    dex.open = false;
+    if (!find.done) input.focus();
+  });
 
   const findPick = suggestBox($('#find-input'), $('#find-suggest'), () => find.guesses, submitFind);
   $('#find-form').addEventListener('submit', e => {

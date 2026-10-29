@@ -119,6 +119,22 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .suggest li.sel, .suggest li:hover { background: var(--surface); }
 .suggest .alias { color: var(--muted); font-size: .85em; margin-left: auto; font-weight: 400; }
 .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; color: var(--muted); font-size: .78rem; font-weight: 500; margin-bottom: 1.6rem; }
+
+/* Nachschlagliste aller Pokémon unter dem Eingabefeld */
+.dex { margin: -.9rem 0 1.6rem; }
+.dex summary { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .85rem; border-radius: var(--pill); background: var(--surface); color: var(--muted); font-size: .78rem; font-weight: 600; cursor: pointer; list-style: none; }
+.dex summary::-webkit-details-marker { display: none; }
+.dex summary::after { content: "▾"; font-size: .7em; }
+.dex[open] summary::after { content: "▴"; }
+.dex summary:hover { background: var(--surface2); }
+.dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: .3rem; max-height: 330px; overflow-y: auto; -webkit-overflow-scrolling: touch; margin-top: .6rem; padding: .4rem; background: var(--surface); border-radius: var(--r); }
+.dex-item { display: flex; flex-direction: column; align-items: center; gap: .05rem; padding: .3rem .15rem .4rem; border: 0; border-radius: 10px; background: var(--bg); font: inherit; color: inherit; cursor: pointer; }
+.dex-item .mini-sprite { width: 58px; height: 58px; margin: -6px 0 -4px; }
+.dex-num { font-size: .64rem; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dex-name { font-size: .75rem; font-weight: 700; line-height: 1.15; text-align: center; letter-spacing: -.01em; }
+.dex-item:hover { background: var(--surface2); }
+.dex-item[disabled] { opacity: .3; cursor: default; }
+.dex-item[disabled]:hover { background: var(--bg); }
 .sq { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
 .sq.ok { background: var(--text); } .sq.miss { background: var(--surface2); }
 

@@ -215,6 +215,9 @@ Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
   Typ, Fundort, Lebensraum, Entwicklungsstufe, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
   gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
   aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.
+  Unter dem Eingabefeld klappt „Alle 150 Pokémon“ eine Übersicht mit Sprite,
+  Nummer und Name auf. Ein Klick schreibt den Namen ins Feld (geraten wird
+  erst mit „Raten“), schon geratene stehen blass und sind gesperrt.
 - **PokePlay** – nach Ähnlichkeit raten, mit Tipp und Auflösen wie Wordplay.
   Beide Spiele haben eine Vorschlagsliste: die 150 Namen schreibt niemand
   auswendig richtig.
