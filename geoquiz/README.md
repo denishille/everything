@@ -102,10 +102,9 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   der Karte selbst: die Karte zeigt dann nur diese Stadt (Tipp, richtiger
   Ort, Linie) und schreibt Entfernung und Punkte an den Ort, der Rest wird
   blass und die Zeile rückt ins Bild. Ein Tipp daneben hebt die Auswahl auf.
-- Die Ergebnisliste lässt sich nach Runde, Punkten oder Entfernung sortieren;
-  nochmal auf dasselbe Feld dreht die Richtung um. Punkte und Entfernung
-  ergeben fast dieselbe Reihenfolge, trennen sich aber bei allen Runden mit
-  null Punkten.
+- Die Ergebnisliste lässt sich nach Runde oder Punkten sortieren; nochmal auf
+  dasselbe Feld dreht die Richtung um. Bei gleicher Punktzahl entscheidet die
+  Entfernung, sonst stünden alle Nuller durcheinander.
 
 ## Daten neu erzeugen
 

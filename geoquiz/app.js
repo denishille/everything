@@ -1243,14 +1243,12 @@
     return nahD <= grenze ? nah : null;
   }
 
-  // Reihenfolge der Ergebnisliste: chronologisch, nach Punkten, nach Entfernung.
+  // Reihenfolge der Ergebnisliste: chronologisch oder nach Punkten.
   // Nochmal auf dasselbe Feld dreht die Richtung um.
-  const SORT_NAMEN = { runde: 'Runde', punkte: 'Punkte', km: 'Entfernung' };
+  const SORT_NAMEN = { runde: 'Runde', punkte: 'Punkte' };
   let mapSort = { feld: 'runde', dir: 1 };
   const mapReihenfolge = () => gmap.placed.map((_, i) => i).sort((a, b) => {
-    const v = mapSort.feld === 'runde' ? a - b
-      : mapSort.feld === 'punkte' ? mapPoints(mapKm(b)) - mapPoints(mapKm(a))
-      : mapKm(a) - mapKm(b);
+    const v = mapSort.feld === 'runde' ? a - b : mapKm(a) - mapKm(b);
     return v * mapSort.dir || a - b;
   });
 
