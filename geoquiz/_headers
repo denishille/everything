@@ -1,0 +1,10 @@
+# Cloudflare Workers Assets: Seiten und Code immer gegen den Server prüfen,
+# damit nach einem Deploy kein altes app.js im Browser hängen bleibt.
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+/sprites/*
+  Cache-Control: public, max-age=604800
+/*.png
+  Cache-Control: public, max-age=604800
+/*.svg
+  Cache-Control: public, max-age=604800

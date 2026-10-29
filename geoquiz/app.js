@@ -1266,12 +1266,17 @@
     });
   }
 
-  // Auswahl gilt für Karte und Liste. Gescrollt wird nicht: wer auf der Karte
-  // tippt, will dort bleiben.
+  // Auswahl gilt für Karte und Liste. Wer auf der Karte tippt, bleibt auf der
+  // Karte: die Scrollhöhe wird festgehalten, falls der Browser beim Austausch
+  // der Marker von sich aus nachjustiert.
   function mapWaehlen(i) {
+    const y = window.scrollY;
+    const halten = () => { if (window.scrollY !== y) window.scrollTo(0, y); };
     gmap.sel = i === null || i === gmap.sel ? null : i;
     $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
     gmap.ergebnisKarte.zeichnen();
+    halten();
+    requestAnimationFrame(halten);
   }
 
   function renderMapResult() {
