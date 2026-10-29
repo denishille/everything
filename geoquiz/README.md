@@ -93,15 +93,19 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 - Die Karte sind die 16 Bundesländer: Außengrenze plus innere Linien zur
   Orientierung.
 - Zoomen: Mausrad oder zwei Finger. Raus kommt man per Doppeltipp, über die
-  Taste ⟲ oben rechts oder einfach durch Rauszoomen — die letzten 12 Prozent
-  überspringt die Karte und ist wieder ganz da. Verschieben: mit der Maus
-  immer, am Handy ein Finger, sobald gezoomt ist (ohne Zoom scrollt der
-  Finger weiter die Seite), zwei Finger schieben immer. Ein kurzer Tipp
-  setzt weiterhin den Pin.
+  Taste ⟲ oben rechts oder einfach durch Rauszoomen — ab 90 Prozent gleitet
+  die Karte von allein in die Vollansicht, und danach scrollt der Finger
+  wieder die Seite. Verschieben: mit der Maus immer, am Handy ein Finger,
+  sobald gezoomt ist (ohne Zoom scrollt der Finger weiter die Seite), zwei
+  Finger schieben immer. Ein kurzer Tipp setzt weiterhin den Pin.
 - In der Auswertung lässt sich jede Zeile antippen, genauso jede Marke auf
   der Karte selbst: die Karte zeigt dann nur diese Stadt (Tipp, richtiger
-  Ort, Linie), der Rest wird blass und die Zeile rückt ins Bild. Ein Tipp
-  daneben hebt die Auswahl auf.
+  Ort, Linie) und schreibt Entfernung und Punkte an den Ort, der Rest wird
+  blass und die Zeile rückt ins Bild. Ein Tipp daneben hebt die Auswahl auf.
+- Die Ergebnisliste lässt sich nach Runde, Punkten oder Entfernung sortieren;
+  nochmal auf dasselbe Feld dreht die Richtung um. Punkte und Entfernung
+  ergeben fast dieselbe Reihenfolge, trennen sich aber bei allen Runden mit
+  null Punkten.
 
 ## Daten neu erzeugen
 

@@ -1018,7 +1018,7 @@
         ziel.classList.toggle('zoom', gezoomt());
         karte.zeichnen();
       },
-      zuruecksetzen() { vb.x = 0; vb.y = 0; vb.w = MAPW; karte.anwenden(); },
+      zuruecksetzen() { animierenZu(MAPW, 0, 0); },
       zoom: () => vb.w / MAPW,
       punkt(e) {                                   // Bildschirm- → Kartenpunkt
         const r = svg.getBoundingClientRect();
@@ -1027,12 +1027,27 @@
       },
     };
     const gezoomt = () => vb.w < MAPW - 1;
+    let lauf = 0, raus = false;                  // laufende Animation, Geste abgehakt
+    const stopp = () => { cancelAnimationFrame(lauf); lauf = 0; };
+    function animierenZu(zw, zx, zy, ms = 220) {
+      stopp();
+      const a = { x: vb.x, y: vb.y, w: vb.w }, t0 = performance.now();
+      const schritt = jetzt => {
+        const t = Math.min(1, (jetzt - t0) / ms), e = 1 - (1 - t) ** 3;
+        vb.x = a.x + (zx - a.x) * e; vb.y = a.y + (zy - a.y) * e; vb.w = a.w + (zw - a.w) * e;
+        karte.anwenden();
+        lauf = t < 1 ? requestAnimationFrame(schritt) : 0;
+      };
+      lauf = requestAnimationFrame(schritt);
+    }
     const zoomen = (p, f) => {
+      stopp();
       vb.x = p.x - (p.x - vb.x) * f;
       vb.y = p.y - (p.y - vb.y) * f;
       vb.w *= f;
-      // beim Rauszoomen den letzten Rest überspringen, sonst klebt man knapp drin
-      if (f > 1 && vb.w > MAPW * 0.88) { vb.w = MAPW; vb.x = 0; vb.y = 0; }
+      // beim Rauszoomen den letzten Rest gleiten lassen: ab hier ist die
+      // Geste durch und die Karte fährt von allein in die Vollansicht
+      if (f > 1 && vb.w > MAPW * 0.9) { raus = true; animierenZu(MAPW, 0, 0, 180); return; }
       karte.anwenden();
     };
     const schieben = (dx, dy, r) => {
@@ -1049,19 +1064,19 @@
     // Ohne diesen Listener verschluckt Chrome die Zwei-Finger-Geste, solange
     // touch-action noch pan-y ist — dann liesse sich gar nicht erst reinzoomen.
     svg.addEventListener('touchmove', e => {
-      if (e.touches.length >= 2 || gezoomt()) e.preventDefault();
+      if (!raus && (e.touches.length >= 2 || gezoomt())) e.preventDefault();
     }, { passive: false });
 
     const zeiger = new Map();
     let weg = 0;
     svg.addEventListener('pointerdown', e => {
       svg.setPointerCapture(e.pointerId);
-      if (!zeiger.size) weg = 0;
+      if (!zeiger.size) { weg = 0; raus = false; stopp(); }
       zeiger.set(e.pointerId, { x: e.clientX, y: e.clientY });
     });
     svg.addEventListener('pointermove', e => {
       const alt = zeiger.get(e.pointerId);
-      if (!alt) return;
+      if (!alt || raus) return;
       const r = svg.getBoundingClientRect();
       if (zeiger.size === 2) {                     // zwei Finger: zoomen und schieben
         const anderer = [...zeiger].find(([id]) => id !== e.pointerId)[1];
@@ -1083,8 +1098,9 @@
     });
     let letzterTipp = 0, letzterOrt = null;
     svg.addEventListener('pointerup', e => {
-      const einzeln = zeiger.size === 1 && weg < 12;
+      const einzeln = zeiger.size === 1 && weg < 12 && !raus;
       zeiger.delete(e.pointerId);
+      if (!zeiger.size) raus = false;
       if (!einzeln) return;
       const jetzt = Date.now();
       const doppelt = jetzt - letzterTipp < 350 && letzterOrt
@@ -1093,7 +1109,10 @@
       if (doppelt && gezoomt()) { letzterTipp = 0; karte.zuruecksetzen(); return; }
       if (tippen) tippen(karte.punkt(e));
     });
-    svg.addEventListener('pointercancel', e => zeiger.delete(e.pointerId));
+    svg.addEventListener('pointercancel', e => {
+      zeiger.delete(e.pointerId);
+      if (!zeiger.size) raus = false;
+    });
     karte.anwenden();
     return karte;
   }
@@ -1132,7 +1151,10 @@
       return `<line class="map-line${cls}" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
         + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 14 : 12) * z).toFixed(1)}"/>`
         + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 7.5 : 6) * z).toFixed(1)}"/>`
-        + (gmap.sel === i ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 24 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>` : '');
+        + (gmap.sel === i
+          ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
+            + `<text class="map-label km" style="font-size:${(25 * z).toFixed(1)}px;fill:${f}" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) + 38 * z).toFixed(1)}">${nf0.format(Math.round(mapKm(i)))} km · ${mapPoints(mapKm(i))} P.</text>`
+          : '');
     }).join('');
   }
 
@@ -1221,6 +1243,31 @@
     return nahD <= grenze ? nah : null;
   }
 
+  // Reihenfolge der Ergebnisliste: chronologisch, nach Punkten, nach Entfernung.
+  // Nochmal auf dasselbe Feld dreht die Richtung um.
+  const SORT_NAMEN = { runde: 'Runde', punkte: 'Punkte', km: 'Entfernung' };
+  let mapSort = { feld: 'runde', dir: 1 };
+  const mapReihenfolge = () => gmap.placed.map((_, i) => i).sort((a, b) => {
+    const v = mapSort.feld === 'runde' ? a - b
+      : mapSort.feld === 'punkte' ? mapPoints(mapKm(b)) - mapPoints(mapKm(a))
+      : mapKm(a) - mapKm(b);
+    return v * mapSort.dir || a - b;
+  });
+
+  function mapListeZeichnen() {
+    $('#map-rs').innerHTML = mapReihenfolge().map(i => {
+      const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
+      return `<button type="button" class="rs${gmap.sel === i ? ' sel' : ''}" data-i="${i}">`
+        + `<div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>`
+        + `<div class="rs-pts" style="color:${kmFarbe(km)}">${pts}</div></button>`;
+    }).join('');
+    $$('#map-sort .sort-chip').forEach(b => {
+      const an = b.dataset.s === mapSort.feld;
+      b.classList.toggle('on', an);
+      b.textContent = SORT_NAMEN[b.dataset.s] + (an ? (mapSort.dir > 0 ? ' ↓' : ' ↑') : '');
+    });
+  }
+
   function mapWaehlen(i, vonKarte) {
     gmap.sel = i === null || i === gmap.sel ? null : i;
     $$('#map-result .rs').forEach(x => x.classList.toggle('sel', +x.dataset.i === gmap.sel));
@@ -1240,11 +1287,10 @@
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
       <div class="map-wrap" id="map-res-wrap"></div>
       <p class="muted map-tipp">Großer Punkt = die Stadt, kleiner = dein Tipp. Grün = nah dran, rot = weit daneben. Auf der Karte oder in der Liste antippen zeigt nur eine Stadt.</p>
-      <div class="rs-list">${gmap.placed.map((p, i) => {
-        const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
-        return `<button type="button" class="rs" data-i="${i}"><div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>
-          <div class="rs-pts" style="color:${kmFarbe(km)}">${pts}</div></button>`;
-      }).join('')}</div>
+      <div class="sortbar" id="map-sort" role="group" aria-label="Sortierung">
+        ${Object.keys(SORT_NAMEN).map(k => `<button type="button" class="sort-chip" data-s="${k}">${SORT_NAMEN[k]}</button>`).join('')}
+      </div>
+      <div class="rs-list" id="map-rs"></div>
       <div class="actions">
         ${prev ? `<button class="ghost" id="btn-map-prev">‹ Rätsel #${prev}</button>` : ''}
         ${next ? `<button class="ghost" id="btn-map-next">Rätsel #${next} ›</button>` : ''}
@@ -1252,7 +1298,18 @@
     box.hidden = false;
     gmap.ergebnisKarte = karteBauen($('#map-res-wrap'), 'Karte mit allen Tipps', ergebnisMarker,
       p => mapWaehlen(naechsteMarke(p), true));
-    $$('#map-result .rs').forEach(el => el.addEventListener('click', () => mapWaehlen(+el.dataset.i, false)));
+    mapListeZeichnen();
+    $('#map-rs').addEventListener('click', e => {
+      const el = e.target.closest('.rs');
+      if (el) mapWaehlen(+el.dataset.i, false);
+    });
+    $('#map-sort').addEventListener('click', e => {
+      const b = e.target.closest('.sort-chip');
+      if (!b) return;
+      if (mapSort.feld === b.dataset.s) mapSort.dir *= -1;
+      else mapSort = { feld: b.dataset.s, dir: 1 };
+      mapListeZeichnen();
+    });
     const bp = $('#btn-map-prev'); if (bp) bp.addEventListener('click', () => { loadMap(prev); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     const bn = $('#btn-map-next'); if (bn) bn.addEventListener('click', () => { loadMap(next); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
