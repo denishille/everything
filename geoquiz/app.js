@@ -1007,7 +1007,15 @@
     const vb = { x: 0, y: 0, w: MAPW, h: MAPH };
 
     const karte = {
-      zeichnen() { marks.innerHTML = marker(vb.w / MAPW); },
+      zeichnen() {
+        marks.innerHTML = marker(vb.w / MAPW, vb);
+        // Beschriftungen, die über den Rand ragen, hereinschieben
+        marks.querySelectorAll('.map-text').forEach(g => {
+          const bb = g.getBBox(), rand = vb.w * 0.015;
+          const dx = Math.max(0, vb.x + rand - bb.x) - Math.max(0, bb.x + bb.width - (vb.x + vb.w - rand));
+          if (dx) g.setAttribute('transform', `translate(${dx.toFixed(1)} 0)`);
+        });
+      },
       anwenden() {
         vb.w = Math.min(MAPW, Math.max(MIN_VB, vb.w));
         vb.h = vb.w * MAPH / MAPW;
@@ -1125,6 +1133,16 @@
     return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(' ')})`;
   }
 
+  // Stadtname über dem Punkt, darunter auf Wunsch die Entfernung. Beide in
+  // einer Gruppe, damit sie beim Hereinschieben zusammenbleiben.
+  function beschriftung(c, z, farbe, unten) {
+    const x = toX(c.lo).toFixed(1), y = toY(c.la);
+    return '<g class="map-text">'
+      + `<text class="map-label" x="${x}" y="${(y - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
+      + (unten ? `<text class="map-label km" x="${x}" y="${(y + 38 * z).toFixed(1)}" style="font-size:${(25 * z).toFixed(1)}px;fill:${farbe}">${esc(unten)}</text>` : '')
+      + '</g>';
+  }
+
   function markerHtml(z) {
     const teile = [];
     gmap.placed.forEach((p, i) => {
@@ -1134,7 +1152,7 @@
         teile.push(`<line class="map-line" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
         teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(12 * z).toFixed(1)}"/>`);
         teile.push(`<circle class="map-guess" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
-        if (gmap.reveal) teile.push(`<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 24 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`);
+        if (gmap.reveal) teile.push(beschriftung(c, z, null, null));
       }
     });
     if (!gmap.reveal && gmap.pin) {
@@ -1151,10 +1169,7 @@
       return `<line class="map-line${cls}" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
         + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 14 : 12) * z).toFixed(1)}"/>`
         + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 7.5 : 6) * z).toFixed(1)}"/>`
-        + (gmap.sel === i
-          ? `<text class="map-label" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
-            + `<text class="map-label km" style="font-size:${(25 * z).toFixed(1)}px;fill:${f}" x="${toX(c.lo).toFixed(1)}" y="${(toY(c.la) + 38 * z).toFixed(1)}">${nf0.format(Math.round(mapKm(i)))} km</text>`
-          : '');
+        + (gmap.sel === i ? beschriftung(c, z, f, Math.round(mapKm(i)) + ' km') : '');
     }).join('');
   }
 
@@ -1289,7 +1304,6 @@
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
       <div class="map-wrap" id="map-res-wrap"></div>
-      <p class="muted map-tipp">Großer Punkt = die Stadt, kleiner = dein Tipp. Grün = nah dran, rot = weit daneben. Auf der Karte oder in der Liste antippen zeigt nur eine Stadt.</p>
       <div class="sortbar" id="map-sort" role="group" aria-label="Sortierung">
         ${Object.keys(SORT_NAMEN).map(k => `<button type="button" class="sort-chip" data-s="${k}">${SORT_NAMEN[k]}</button>`).join('')}
       </div>
