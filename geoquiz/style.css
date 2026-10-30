@@ -278,6 +278,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-line.off, .map-pin.off, .map-true.off, .map-guess.off { opacity: .15; }
 .map-reset { position: absolute; top: .5rem; right: .5rem; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--bg); color: var(--text); font-size: 1.1rem; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
 .sortbar { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-bottom: .7rem; }
+.map-modi { margin: 0 0 1.1rem; }
+.map-modi .sort-chip { font-size: .85rem; padding: .4rem 1.1rem; }
+.map-ziel { fill: var(--text); fill-opacity: .45; }
+.map-ziel.off { fill-opacity: .1; }
+.map-ziel.on { fill-opacity: .9; }
 .sort-chip { border: 0; padding: .3rem .8rem; border-radius: var(--pill); background: var(--surface); color: var(--muted); font: inherit; font-size: .76rem; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums; }
 .sort-chip:hover { background: var(--surface2); }
 .sort-chip.on { background: var(--text); color: #fff; }
@@ -289,6 +294,9 @@ button.rs.sel { box-shadow: inset 0 0 0 2px var(--text); }
 .map-stage { position: relative; max-width: 460px; margin: 0 auto 1.2rem; }
 .map-stage .map-wrap { max-width: none; }
 .map-actions { position: absolute; right: .5rem; bottom: .5rem; display: flex; justify-content: flex-end; }
+.map-stage.links .map-actions { right: auto; left: .5rem; justify-content: flex-start; }
+/* die Weltkarte ist flach, der Knopf darf da nicht so viel wegnehmen */
+.map-stage.links .map-actions .primary { padding: .45rem 1rem; font-size: .85rem; }
 .map-actions .primary { padding: .7rem 1.3rem; box-shadow: 0 3px 14px rgba(0,0,0,.22); }
 .map-actions .primary:disabled { background: #cacacb; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .result .map-wrap { margin: 1.2rem auto; }

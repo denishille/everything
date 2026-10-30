@@ -298,6 +298,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-line.off, .map-pin.off, .map-true.off, .map-guess.off { opacity: .15; }
 .map-reset { position: absolute; top: .5rem; right: .5rem; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--bg); color: var(--text); font-size: 1.1rem; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
 .sortbar { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-bottom: .7rem; }
+.map-modi { margin: 0 0 1.1rem; }
+.map-modi .sort-chip { font-size: .85rem; padding: .4rem 1.1rem; }
+.map-ziel { fill: var(--text); fill-opacity: .45; }
+.map-ziel.off { fill-opacity: .1; }
+.map-ziel.on { fill-opacity: .9; }
 .sort-chip { border: 0; padding: .3rem .8rem; border-radius: var(--pill); background: var(--surface); color: var(--muted); font: inherit; font-size: .76rem; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums; }
 .sort-chip:hover { background: var(--surface2); }
 .sort-chip.on { background: var(--text); color: #fff; }
@@ -309,6 +314,9 @@ button.rs.sel { box-shadow: inset 0 0 0 2px var(--text); }
 .map-stage { position: relative; max-width: 460px; margin: 0 auto 1.2rem; }
 .map-stage .map-wrap { max-width: none; }
 .map-actions { position: absolute; right: .5rem; bottom: .5rem; display: flex; justify-content: flex-end; }
+.map-stage.links .map-actions { right: auto; left: .5rem; justify-content: flex-start; }
+/* die Weltkarte ist flach, der Knopf darf da nicht so viel wegnehmen */
+.map-stage.links .map-actions .primary { padding: .45rem 1rem; font-size: .85rem; }
 .map-actions .primary { padding: .7rem 1.3rem; box-shadow: 0 3px 14px rgba(0,0,0,.22); }
 .map-actions .primary:disabled { background: #cacacb; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .result .map-wrap { margin: 1.2rem auto; }
@@ -550,7 +558,7 @@ a.icon-btn { text-decoration: none; }
     <div class="view-head">
       <div>
         <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
-        <p class="sub">Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.</p>
+        <p class="sub" id="map-sub">Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.</p>
       </div>
       <div class="nav" aria-label="Rätsel-Navigation">
         <select class="nav-pick nav-filter" id="map-filter" aria-label="Filter">
@@ -562,6 +570,11 @@ a.icon-btn { text-decoration: none; }
         <select class="nav-pick" id="map-pick" aria-label="Rätsel wählen"></select>
         <button class="nav-btn" id="map-next" aria-label="Nächstes Rätsel">›</button>
       </div>
+    </div>
+
+    <div class="sortbar map-modi" id="map-modi" role="group" aria-label="Karte wählen">
+      <button type="button" class="sort-chip on" data-m="de">Deutschland</button>
+      <button type="button" class="sort-chip" data-m="welt">Welt</button>
     </div>
 
     <div id="map-board">
@@ -782,9 +795,10 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   const filters = {
     daily: store.get('dailyFilter', 'all'), rankle: store.get('rankleFilter', 'all'),
     flag: store.get('flagFilter', 'all'), map: store.get('mapFilter', 'all'),
+    wmap: store.get('wmapFilter', 'all'),
   };
   $('#daily-filter').value = filters.daily; $('#rankle-filter').value = filters.rankle;
-  $('#flag-filter').value = filters.flag; $('#map-filter').value = filters.map;
+  $('#flag-filter').value = filters.flag;   // GeoMap setzt seinen Filter je Modus
 
   $('#daily-prev').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, -1); if (n) loadDaily(n); });
   $('#daily-next').addEventListener('click', () => { const n = neighbour(puzzleList(dailyKey, filters.daily), daily.num, 1); if (n) loadDaily(n); });
@@ -1532,35 +1546,11 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   }
 
   // =================================================================
-  //  GEOMAP – Städte auf der Deutschlandkarte platzieren
+  //  GEOMAP – Orte auf einer Karte platzieren. Zwei Modi mit derselben
+  //  Mechanik: Deutschland mit Städten, Welt mit Ländern. Alles
+  //  Unterschiedliche steckt im Modus-Objekt, der Rest kennt nur das.
   // =================================================================
-  const GM = window.GEO_MAP;
-  const CITIES = GM.staedte;
   const MAP_ROUNDS = 8;
-  const NULL_KM = 250;                          // ab dieser Luftlinie null Punkte
-  const mapKey = n => 'map.' + n;
-  const gmap = { num: 0, day: 0, cities: [], placed: [], round: 0, reveal: false, pin: null, sel: null, karte: null, ergebnisKarte: null };
-
-  // Projektion: gleichwinklig mit Breitenkorrektur, Zeichenfläche 1000 breit
-  const [LO0, LA0, LO1, LA1] = GM.box;
-  const KLON = Math.cos((LA0 + LA1) / 2 * Math.PI / 180);
-  const MAPW = 1000, SCALE = MAPW / ((LO1 - LO0) * KLON);
-  const MAPH = Math.round((LA1 - LA0) * SCALE);
-  const toX = lo => (lo - LO0) * KLON * SCALE;
-  const toY = la => (LA1 - la) * SCALE;
-  const toLo = x => LO0 + x / (SCALE * KLON);
-  const toLa = y => LA1 - y / SCALE;
-
-  // Umrisse einmal in Pfade übersetzen; die Karte selbst ändert sich nie
-  const MAP_PATHS = GM.laender.flatMap(([, ringe]) => ringe.map(r => {
-    let x = r[0], y = r[1];
-    let d = 'M' + toX(x / GM.q).toFixed(1) + ' ' + toY(y / GM.q).toFixed(1);
-    for (let i = 2; i < r.length; i += 2) {
-      x += r[i]; y += r[i + 1];
-      d += 'L' + toX(x / GM.q).toFixed(1) + ' ' + toY(y / GM.q).toFixed(1);
-    }
-    return d + 'Z';
-  }));
 
   function luftlinie(a, b) {
     const R = 6371, rad = d => d * Math.PI / 180;
@@ -1568,19 +1558,143 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     const h = Math.sin(dla / 2) ** 2 + Math.cos(rad(a.la)) * Math.cos(rad(b.la)) * Math.sin(dlo / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
   }
-  const mapPoints = km => Math.round(100 * Math.max(0, 1 - km / NULL_KM));
-  const mapCity = i => CITIES[gmap.cities[i]];
-  const mapKm = i => luftlinie(gmap.placed[i], mapCity(i));
+
+  // Gleichwinklige Projektion mit Breitenkorrektur, Zeichenfläche 1000 breit
+  function projektion(lo0, la0, lo1, la1) {
+    const k = Math.cos((la0 + la1) / 2 * Math.PI / 180);
+    const W = 1000, scale = W / ((lo1 - lo0) * k);
+    return {
+      W, H: Math.round((la1 - la0) * scale),
+      toX: lo => (lo - lo0) * k * scale,
+      toY: la => (la1 - la) * scale,
+      toLo: x => lo0 + x / (scale * k),
+      toLa: y => la1 - y / scale,
+    };
+  }
+  const ringPfad = (ring, pr) => ring.map(([lo, la], i) =>
+    (i ? 'L' : 'M') + pr.toX(lo).toFixed(1) + ' ' + pr.toY(la).toFixed(1)).join('') + 'Z';
+
+  // ---- Modus Deutschland: Großstädte, gemessen wird Punkt zu Punkt
+  function modusDeutschland() {
+    const GM = window.GEO_MAP;
+    const pr = projektion(GM.box[0], GM.box[1], GM.box[2], GM.box[3]);
+    const pfade = GM.laender.flatMap(([, ringe]) => ringe.map(r => {
+      let x = r[0], y = r[1];
+      let d = 'M' + pr.toX(x / GM.q).toFixed(1) + ' ' + pr.toY(y / GM.q).toFixed(1);
+      for (let i = 2; i < r.length; i += 2) {
+        x += r[i]; y += r[i + 1];
+        d += 'L' + pr.toX(x / GM.q).toFixed(1) + ' ' + pr.toY(y / GM.q).toFixed(1);
+      }
+      return d + 'Z';
+    }));
+    return {
+      id: 'de', titel: 'Deutschland', praefix: 'map', salz: 13, nullKm: 250, minVb: pr.W / 8,
+      hinweis: 'Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.',
+      pr, pfade,
+      ziele: GM.staedte.map(c => ({ n: c.n, lo: c.lo, la: c.la, gewicht: Math.sqrt(c.p) })),
+      messen: (pin, z) => ({ km: luftlinie(pin, z), lo: z.lo, la: z.la }),
+      zielHtml: (z, zoom, cls, sel) =>
+        `<circle class="map-true${cls}" cx="${pr.toX(z.lo).toFixed(1)}" cy="${pr.toY(z.la).toFixed(1)}" r="${((sel ? 14 : 12) * zoom).toFixed(1)}"/>`,
+    };
+  }
+
+  // ---- Modus Welt: Länder. Wer ins Land trifft, hat null Kilometer,
+  //      sonst zählt der Weg bis zur nächsten Grenze.
+  function modusWelt() {
+    const pr = projektion(-180, -56, 180, 84);
+    const alle = window.GEO_SHAPES ? SHAPES : [];
+    const pfade = alle.flatMap(sh => sh.rings.map(r => ringPfad(r, pr)));
+    const laender = D.countries
+      .filter(c => (c.stats.area || 0) >= 10000 || (c.stats.pop || 0) >= 5e6)
+      .map(c => {
+        const rings = (SHAPE_BY_ISO[c.iso3] || []).reduce((a, sh) => a.concat(sh.rings), []);
+        let gross = null;
+        for (const r of rings) {
+          const b = ringBox(r), gr = (b[2] - b[0]) * (b[3] - b[1]);
+          if (!gross || gr > gross.gr) gross = { gr, b };
+        }
+        const b = gross ? gross.b : [c.latlng[1], c.latlng[0], c.latlng[1], c.latlng[0]];
+        return {
+          n: c.name, rings,
+          lo: (b[0] + b[2]) / 2, la: (b[1] + b[3]) / 2,       // Anker für Beschriftung
+          pfad: rings.map(r => ringPfad(r, pr)).join(''),
+          gewicht: Math.pow(Math.max(1000, c.stats.area || 1000), 0.25),
+        };
+      })
+      .filter(z => z.rings.length);
+    return {
+      id: 'welt', titel: 'Welt', praefix: 'wmap', salz: 97, nullKm: 2000, minVb: pr.W / 20,
+      hinweis: 'Tippe das genannte Land auf der Karte an. Ins Land getroffen gibt die volle Punktzahl.',
+      pr, pfade, ziele: laender,
+      messen(pin, z) {
+        if (imLand(pin, z.rings)) return { km: 0, lo: pin.lo, la: pin.la };
+        const nah = nahePunkt(pin, z.rings);
+        return { km: luftlinie(pin, nah), lo: nah.lo, la: nah.la };
+      },
+      zielHtml: (z, zoom, cls) => `<path class="map-ziel${cls}" d="${z.pfad}"/>`,
+    };
+  }
+
+  // Liegt der Punkt im Land? Strahlverfahren über alle Ringe.
+  function imLand(p, rings) {
+    let drin = false;
+    for (const r of rings) {
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i], [xj, yj] = r[j];
+        if ((yi > p.la) !== (yj > p.la)
+            && p.lo < (xj - xi) * (p.la - yi) / (yj - yi) + xi) drin = !drin;
+      }
+    }
+    return drin;
+  }
+
+  // Nächster Punkt auf dem Umriss, eben gerechnet mit Breitenkorrektur
+  function nahePunkt(p, rings) {
+    const k = Math.max(0.02, Math.cos(p.la * Math.PI / 180));
+    const wrap = d => d - 360 * Math.round(d / 360);
+    let best = null;
+    for (const r of rings) {
+      for (let i = 0; i < r.length; i++) {
+        const a = r[i], b = r[(i + 1) % r.length];
+        const ax = wrap(a[0] - p.lo) * k, ay = a[1] - p.la;
+        const dx = wrap(b[0] - a[0]) * k, dy = b[1] - a[1];
+        const l2 = dx * dx + dy * dy;
+        const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+        const qx = ax + dx * t, qy = ay + dy * t, d2 = qx * qx + qy * qy;
+        if (!best || d2 < best.d2) best = { d2, lo: wrap(p.lo + qx / k), la: p.la + qy };
+      }
+    }
+    return best || { lo: p.lo, la: p.la };
+  }
+
+  const MODI = { de: modusDeutschland(), welt: null };
+  const holModus = id => {
+    if (id === 'welt' && !MODI.welt) MODI.welt = modusWelt();   // erst bauen, wenn gebraucht
+    return MODI[id] || MODI.de;
+  };
+  let M = holModus(store.get('mapModus', 'de'));
+
+  const gmap = { num: 0, day: 0, cities: [], placed: [], round: 0, reveal: false, pin: null, sel: null, karte: null, ergebnisKarte: null };
+  const mapKey = n => M.praefix + '.' + n;
+  const mapFilter = () => filters[M.praefix] || 'all';
+  const mapPoints = km => Math.round(100 * Math.max(0, 1 - km / M.nullKm));
+  const mapCity = i => M.ziele[gmap.cities[i]];
+  const mapKm = i => gmap.placed[i].km;
+  const mapZiel = i => ({ lo: gmap.placed[i].zlo, la: gmap.placed[i].zla });
   const mapScore = () => gmap.placed.reduce((s, _, i) => s + mapPoints(mapKm(i)), 0);
+  const messen = (pin, i) => {
+    const m = M.messen(pin, mapCity(i));
+    return { lo: pin.lo, la: pin.la, km: m.km, zlo: m.lo, zla: m.la };
+  };
 
   function loadMap(n) {
     n = clampPuzzle(n);
     gmap.num = n; gmap.day = n - 1;
-    store.set('mapLast', n);
-    // Acht Städte des Tages, nach Einwohnerzahl gewichtet gezogen: Berlin kommt
-    // öfter dran als Remscheid, aber jede der 71 kann kommen.
-    const rng = mulberry32(gmap.day * 7919 + 13);
-    const topf = CITIES.map((c, i) => ({ i, gewicht: Math.sqrt(c.p) }));
+    store.set(M.praefix + 'Last', n);
+    // Acht Ziele des Tages, gewichtet gezogen: Große kommen öfter dran,
+    // drankommen kann aber jedes.
+    const rng = mulberry32(gmap.day * 7919 + M.salz);
+    const topf = M.ziele.map((c, i) => ({ i, gewicht: c.gewicht }));
     gmap.cities = [];
     while (gmap.cities.length < MAP_ROUNDS && topf.length) {
       let ziel = topf.reduce((sum, c) => sum + c.gewicht, 0) * rng();
@@ -1591,11 +1705,17 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     gmap.placed = []; gmap.reveal = false; gmap.pin = null; gmap.sel = null;
     const saved = store.get(mapKey(n), null);
     if (saved && JSON.stringify(saved.cities) === JSON.stringify(gmap.cities)) {
-      gmap.placed = (saved.placed || []).slice(0, MAP_ROUNDS);
+      // ältere Spielstände haben nur den Tipp, die Messung wird nachgeholt
+      gmap.placed = (saved.placed || []).slice(0, MAP_ROUNDS)
+        .map((p, i) => (p && p.km != null ? p : messenFuer(p, i)));
     }
     gmap.round = gmap.placed.length;
     renderMap(true);
   }
+  const messenFuer = (pin, i) => {
+    const m = M.messen(pin, M.ziele[gmap.cities[i]]);
+    return { lo: pin.lo, la: pin.la, km: m.km, zlo: m.lo, zla: m.la };
+  };
   const saveMap = () => store.set(mapKey(gmap.num), {
     day: gmap.day, cities: gmap.cities, placed: gmap.placed,
     done: gmap.placed.length >= MAP_ROUNDS, won: gmap.placed.length >= MAP_ROUNDS,
@@ -1604,10 +1724,10 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   // Eine Karte mit Zoom. Rad oder zwei Finger vergrößern, Ziehen verschiebt,
   // ein Tipp ohne Bewegung setzt den Punkt. Marker bekommen den Zoomfaktor
   // und rechnen ihre Größe dagegen, damit sie gleich groß bleiben.
-  const MIN_VB = MAPW / 8;                        // höchstens achtfach
   function karteBauen(ziel, beschriftung, marker, tippen) {
+    const MAPW = M.pr.W, MAPH = M.pr.H, MIN_VB = M.minVb;
     ziel.innerHTML = `<svg viewBox="0 0 ${MAPW} ${MAPH}" role="img" aria-label="${beschriftung}">
-        <g class="map-land">${MAP_PATHS.map(d => `<path d="${d}"/>`).join('')}</g>
+        <g class="map-land">${M.pfade.map(d => `<path d="${d}"/>`).join('')}</g>
         <g class="map-marks"></g></svg>
       <button type="button" class="map-reset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen" hidden>⟲</button>`;
     const svg = ziel.querySelector('svg');
@@ -1734,10 +1854,10 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     return karte;
   }
 
-  // Grün bei kurzer Luftlinie, Bernstein in der Mitte, Rot ab 250 km
+  // Grün bei kurzer Luftlinie, Bernstein in der Mitte, Rot am Ende der Skala
   const MAP_SKALA = [[17, 145, 79], [224, 154, 0], [211, 58, 26]];
   function kmFarbe(km) {
-    const t = Math.min(1, km / NULL_KM) * 2;
+    const t = Math.min(1, km / M.nullKm) * 2;
     const a = MAP_SKALA[t < 1 ? 0 : 1], b = MAP_SKALA[t < 1 ? 1 : 2], f = t < 1 ? t : t - 1;
     return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(' ')})`;
   }
@@ -1745,27 +1865,31 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   // Stadtname über dem Punkt, darunter auf Wunsch die Entfernung. Beide in
   // einer Gruppe, damit sie beim Hereinschieben zusammenbleiben.
   function beschriftung(c, z, farbe, unten) {
-    const x = toX(c.lo).toFixed(1), y = toY(c.la);
+    const x = M.pr.toX(c.lo).toFixed(1), y = M.pr.toY(c.la);
     return '<g class="map-text">'
       + `<text class="map-label" x="${x}" y="${(y - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
       + (unten ? `<text class="map-label km" x="${x}" y="${(y + 38 * z).toFixed(1)}" style="font-size:${(25 * z).toFixed(1)}px;fill:${farbe}">${esc(unten)}</text>` : '')
       + '</g>';
   }
 
+  // Linie vom Tipp zum gemessenen Ort; bei null Kilometern gibt es keine
+  const linieHtml = (p, cls, f) => p.km < 1 ? '' :
+    `<line class="map-line${cls}" style="stroke:${f}" x1="${M.pr.toX(p.lo).toFixed(1)}" y1="${M.pr.toY(p.la).toFixed(1)}" x2="${M.pr.toX(p.zlo).toFixed(1)}" y2="${M.pr.toY(p.zla).toFixed(1)}"/>`;
+
   function markerHtml(z) {
     const teile = [];
     gmap.placed.forEach((p, i) => {
       const nurLetzte = gmap.reveal && i === gmap.placed.length - 1;
       if (!gmap.reveal || nurLetzte) {
-        const c = mapCity(i), f = kmFarbe(mapKm(i));
-        teile.push(`<line class="map-line" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-true" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${(12 * z).toFixed(1)}"/>`);
-        teile.push(`<circle class="map-guess" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
+        const c = mapCity(i), f = kmFarbe(p.km);
+        teile.push(M.zielHtml(c, z, ' on', false));
+        teile.push(linieHtml(p, '', f));
+        teile.push(`<circle class="map-guess" style="stroke:${f}" cx="${M.pr.toX(p.lo).toFixed(1)}" cy="${M.pr.toY(p.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
         if (gmap.reveal) teile.push(beschriftung(c, z, null, null));
       }
     });
     if (!gmap.reveal && gmap.pin) {
-      teile.push(`<circle class="map-pin" cx="${toX(gmap.pin.lo).toFixed(1)}" cy="${toY(gmap.pin.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
+      teile.push(`<circle class="map-pin" cx="${M.pr.toX(gmap.pin.lo).toFixed(1)}" cy="${M.pr.toY(gmap.pin.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
     }
     return teile.join('');
   }
@@ -1773,18 +1897,25 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   // Ergebniskarte: die angeklickte Stadt bleibt stehen, der Rest tritt zurück
   function ergebnisMarker(z) {
     return gmap.placed.map((p, i) => {
-      const c = mapCity(i), f = kmFarbe(mapKm(i));
-      const cls = gmap.sel == null ? '' : gmap.sel === i ? ' on' : ' off';
-      return `<line class="map-line${cls}" style="stroke:${f}" x1="${toX(p.lo).toFixed(1)}" y1="${toY(p.la).toFixed(1)}" x2="${toX(c.lo).toFixed(1)}" y2="${toY(c.la).toFixed(1)}"/>`
-        + `<circle class="map-true${cls}" cx="${toX(c.lo).toFixed(1)}" cy="${toY(c.la).toFixed(1)}" r="${((gmap.sel === i ? 14 : 12) * z).toFixed(1)}"/>`
-        + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${toX(p.lo).toFixed(1)}" cy="${toY(p.la).toFixed(1)}" r="${((gmap.sel === i ? 7.5 : 6) * z).toFixed(1)}"/>`
-        + (gmap.sel === i ? beschriftung(c, z, f, Math.round(mapKm(i)) + ' km') : '');
+      const c = mapCity(i), f = kmFarbe(p.km);
+      const sel = gmap.sel === i;
+      const cls = gmap.sel == null ? '' : sel ? ' on' : ' off';
+      return M.zielHtml(c, z, cls, sel)
+        + linieHtml(p, cls, f)
+        + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${M.pr.toX(p.lo).toFixed(1)}" cy="${M.pr.toY(p.la).toFixed(1)}" r="${((sel ? 8.5 : 7) * z).toFixed(1)}"/>`
+        + (sel ? beschriftung(c, z, f, Math.round(p.km) + ' km') : '');
     }).join('');
   }
 
   function renderMap(neuZeichnen) {
     $('#map-num').textContent = 'Rätsel #' + gmap.num;
-    const liste = fillPicker($('#map-pick'), gmap.num, mapKey, filters.map);
+    $('#map-sub').textContent = M.hinweis;
+    $$('#map-modi .sort-chip').forEach(b => b.classList.toggle('on', b.dataset.m === M.id));
+    // Setzen sitzt in der leeren Ecke: Deutschland rechts (Österreich),
+    // Welt links (Südpazifik)
+    $('.map-stage').classList.toggle('links', M.id === 'welt');
+    $('#map-filter').value = mapFilter();
+    const liste = fillPicker($('#map-pick'), gmap.num, mapKey, mapFilter());
     $('#map-prev').disabled = !neighbour(liste, gmap.num, -1);
     $('#map-next').disabled = !neighbour(liste, gmap.num, 1);
     const fertig = gmap.placed.length >= MAP_ROUNDS && !gmap.reveal;
@@ -1797,14 +1928,15 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       }).join('');
       $('#map-score').textContent = nf0.format(mapScore());
       if (neuZeichnen || !gmap.karte) {
-        gmap.karte = karteBauen($('#map-wrap'), 'Karte von Deutschland', markerHtml, mapTap);
+        gmap.karte = karteBauen($('#map-wrap'), 'Karte ' + M.titel, markerHtml, mapTap);
       }
       gmap.karte.zeichnen();
       const i = Math.min(gmap.round, MAP_ROUNDS - 1);
       if (gmap.reveal) {
-        const km = mapKm(gmap.placed.length - 1), pts = mapPoints(km);
+        const p = gmap.placed[gmap.placed.length - 1], pts = mapPoints(p.km);
         $('#map-city').textContent = mapCity(gmap.placed.length - 1).n;
-        $('#map-hint').textContent = `${nf0.format(Math.round(km))} km daneben · ${pts} Punkte`;
+        $('#map-hint').textContent = p.km < 1 ? `Mitten rein · ${pts} Punkte`
+          : `${nf0.format(Math.round(p.km))} km daneben · ${pts} Punkte`;
         $('#map-set').textContent = gmap.placed.length >= MAP_ROUNDS ? 'Ergebnis' : 'Weiter';
         $('#map-set').disabled = false;
       } else {
@@ -1819,9 +1951,10 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
 
   function mapTap(p) {
     if (gmap.reveal || gmap.placed.length >= MAP_ROUNDS) return;
-    gmap.pin = { lo: toLo(p.x), la: toLa(p.y) };
+    gmap.pin = { lo: M.pr.toLo(p.x), la: M.pr.toLa(p.y) };
     gmap.karte.zeichnen();
     $('#map-set').disabled = false;
+    $('#map-hint').textContent = 'Passt? Dann „Setzen“';
   }
 
   $('#map-set').addEventListener('click', () => {
@@ -1833,14 +1966,15 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       return;
     }
     if (!gmap.pin) return;
-    gmap.placed.push(gmap.pin);
+    gmap.placed.push(messen(gmap.pin, gmap.placed.length));
     gmap.reveal = true; gmap.pin = null;
     saveMap();
     renderMap(false);
   });
 
   function recordMapStats() {
-    const st = store.get('mapStats', { games: 0, sum: 0, best: 0, lastDay: null, streak: 0, maxStreak: 0, done: {} });
+    const schluessel = M.praefix + 'Stats';
+    const st = store.get(schluessel, { games: 0, sum: 0, best: 0, lastDay: null, streak: 0, maxStreak: 0, done: {} });
     st.done = st.done || {};
     if (st.done[gmap.num]) return;
     st.done[gmap.num] = 1;
@@ -1851,20 +1985,26 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       st.maxStreak = Math.max(st.maxStreak, st.streak);
       st.lastDay = gmap.day;
     }
-    store.set('mapStats', st);
+    store.set(schluessel, st);
   }
 
-  // Marke unter dem Finger: Stadt oder eigener Tipp, sonst nichts
+  // Marke unter dem Finger: Ziel oder eigener Tipp, sonst nichts
   function naechsteMarke(p) {
     const grenze = 40 * gmap.ergebnisKarte.zoom();
     let nah = null, nahD = Infinity;
     gmap.placed.forEach((g, i) => {
       const c = mapCity(i);
-      const d = Math.min(Math.hypot(p.x - toX(c.lo), p.y - toY(c.la)),
-                         Math.hypot(p.x - toX(g.lo), p.y - toY(g.la)));
+      const d = Math.min(Math.hypot(p.x - M.pr.toX(c.lo), p.y - M.pr.toY(c.la)),
+                         Math.hypot(p.x - M.pr.toX(g.lo), p.y - M.pr.toY(g.la)));
       if (d < nahD) { nahD = d; nah = i; }
     });
-    return nahD <= grenze ? nah : null;
+    if (nahD <= grenze) return nah;
+    // in der Welt zählt auch ein Tipp irgendwo ins Land
+    if (M.id === 'welt') {
+      const ort = { lo: M.pr.toLo(p.x), la: M.pr.toLa(p.y) };
+      for (let i = 0; i < gmap.placed.length; i++) if (imLand(ort, mapCity(i).rings)) return i;
+    }
+    return null;
   }
 
   // Reihenfolge der Ergebnisliste: chronologisch oder nach Punkten.
@@ -1880,7 +2020,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     $('#map-rs').innerHTML = mapReihenfolge().map(i => {
       const c = mapCity(i), km = mapKm(i), pts = mapPoints(km);
       return `<button type="button" class="rs${gmap.sel === i ? ' sel' : ''}" data-i="${i}">`
-        + `<div class="rs-body"><strong>${esc(c.n)}</strong>${nf0.format(Math.round(km))} km daneben</div>`
+        + `<div class="rs-body"><strong>${esc(c.n)}</strong>${km < 1 ? 'mitten rein' : nf0.format(Math.round(km)) + ' km daneben'}</div>`
         + `<div class="rs-pts" style="color:${kmFarbe(km)}">${pts}</div></button>`;
     }).join('');
     $$('#map-sort .sort-chip').forEach(b => {
@@ -1908,7 +2048,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     if (gmap.placed.length < MAP_ROUNDS || gmap.reveal) { box.hidden = true; return; }
     const t = mapScore();
     const urteil = t >= 700 ? 'Ortskundig!' : t >= 500 ? 'Geht doch.' : t >= 300 ? 'Da ist Luft.' : 'Autsch.';
-    const liste = puzzleList(mapKey, filters.map);
+    const liste = puzzleList(mapKey, mapFilter());
     const prev = neighbour(liste, gmap.num, -1), next = neighbour(liste, gmap.num, 1);
     box.innerHTML = `
       <h2>${t} / ${MAP_ROUNDS * 100} Punkte · ${urteil}</h2>
@@ -1940,12 +2080,21 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     const bn = $('#btn-map-next'); if (bn) bn.addEventListener('click', () => { loadMap(next); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
 
-  $('#map-prev').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, filters.map), gmap.num, -1); if (n) loadMap(n); });
-  $('#map-next').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, filters.map), gmap.num, 1); if (n) loadMap(n); });
+  $('#map-modi').addEventListener('click', e => {
+    const b = e.target.closest('.sort-chip');
+    if (!b || b.dataset.m === M.id) return;
+    M = holModus(b.dataset.m);
+    store.set('mapModus', M.id);
+    gmap.karte = null;
+    loadMap(store.get(M.praefix + 'Last', null) || undefined);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('#map-prev').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, mapFilter()), gmap.num, -1); if (n) loadMap(n); });
+  $('#map-next').addEventListener('click', () => { const n = neighbour(puzzleList(mapKey, mapFilter()), gmap.num, 1); if (n) loadMap(n); });
   $('#map-pick').addEventListener('change', e => loadMap(+e.target.value));
   $('#map-filter').addEventListener('change', e => {
-    filters.map = e.target.value; store.set('mapFilter', filters.map);
-    const liste = puzzleList(mapKey, filters.map);
+    filters[M.praefix] = e.target.value; store.set(M.praefix + 'Filter', e.target.value);
+    const liste = puzzleList(mapKey, mapFilter());
     if (liste.length && !liste.includes(gmap.num)) loadMap(liste[0]); else renderMap(true);
   });
 
@@ -1968,8 +2117,8 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
         <h2>Verteilung der Versuche</h2>
         <div class="dist">${[1, 2, 3, 4, 5].map(n => `<span>${n}</span><div class="bar${n === hl ? ' hl' : ''}" style="width:${Math.max(7, 100 * (st.dist[n] || 0) / maxD)}%">${st.dist[n] || 0}</div>`).join('')}</div>`;
     } else if (view === 'map') {
-      const st = store.get('mapStats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
-      el.innerHTML = `<h2>GeoMap – Statistik</h2>
+      const st = store.get(M.praefix + 'Stats', { games: 0, sum: 0, best: 0, streak: 0, maxStreak: 0 });
+      el.innerHTML = `<h2>GeoMap ${esc(M.titel)} – Statistik</h2>
         <div class="stat-grid">
           <div><strong>${st.games}</strong><span>Spiele</span></div>
           <div><strong>${st.games ? Math.round(st.sum / st.games) : 0}</strong><span>Ø Punkte</span></div>
@@ -2006,7 +2155,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   loadDaily(store.get('dailyLast', null) || undefined);
   loadRankle(store.get('rankleLast', null) || undefined);
   loadFlag(store.get('flagLast', null) || undefined);
-  loadMap(store.get('mapLast', null) || undefined);
+  loadMap(store.get(M.praefix + 'Last', null) || undefined);
   const startView = { '#rankle': 'rankle', '#flag': 'flag', '#map': 'map' }[location.hash] || 'daily';
   setView(startView);
 

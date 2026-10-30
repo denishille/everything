@@ -6,7 +6,7 @@ weiter, eine Navigation gibt es bewusst nicht:
 
 | Bereich | Ordner | Spiele | Knopf führt zu |
 |---|---|---|---|
-| **Geobrudis** | `/` | GeoFind, GeoRank, GeoFlag, GeoMap | Pokebrudis |
+| **Geobrudis** | `/` | GeoFind, GeoRank, GeoFlag, GeoMap (Deutschland & Welt) | Pokebrudis |
 | **Pokebrudis** | `poke/` | PokeFind, PokePlay | Spielbrudis |
 | **Spielbrudis** | `spiele/` | Wordplay | Geobrudis |
 
@@ -78,22 +78,32 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 
 ## GeoMap
 
-- 8 Runden, je eine deutsche Großstadt. Auf die Karte tippen, „Setzen“, dann
-  zeigt die Karte den richtigen Ort und die Luftlinie. „Setzen“ klebt unten
-  rechts auf der Karte und bleibt dort auch beim Zoomen — dort unten liegt
-  Österreich, verdeckt wird also keine deutsche Stadt.
-- Punkte linear nach Entfernung: 100 am Punkt, 0 ab 250 km. Maximum 800.
-- Der große schwarze Punkt ist die gesuchte Stadt, der kleine farbige Ring
-  dein Tipp, dazwischen die Luftlinie.
+Zwei Karten, dieselbe Mechanik. Oben schaltet man zwischen **Deutschland**
+(Städte) und **Welt** (Länder) um; jeder Modus hat eigene Rätsel, eigenen
+Spielstand und eigene Statistik, die Wahl wird gemerkt.
+
+- 8 Runden, je ein Ziel. Auf die Karte tippen, „Setzen“, dann zeigt die
+  Karte das Ziel und die Luftlinie. „Setzen“ klebt auf der Karte und bleibt
+  dort auch beim Zoomen — in Deutschland unten rechts (da liegt Österreich),
+  in der Welt unten links (Südpazifik), damit kein Ziel verdeckt wird.
+- Punkte linear nach Entfernung: 100 am Ziel, 0 ab 250 km (Deutschland) bzw.
+  2000 km (Welt). Maximum 800.
+- **Deutschland:** gesucht sind die 71 kreisfreien Städte ab 100.000
+  Einwohnern, dazu Hannover, Aachen und Saarbrücken (die sind nicht
+  kreisfrei, gehören aber dazu). Gezogen wird nach Einwohnerzahl gewichtet —
+  Berlin kommt öfter dran als Remscheid, drankommen kann jede. Der große
+  schwarze Punkt ist die Stadt, der kleine farbige Ring dein Tipp. Die Karte
+  sind die 16 Bundesländer: Außengrenze plus innere Linien zur Orientierung.
+- **Welt:** gesucht sind 164 Länder — alle ab 10.000 km² oder 5 Mio.
+  Einwohnern, gewichtet mit der vierten Wurzel der Fläche, damit Große etwas
+  öfter kommen als Kleine. Wer ins Land trifft, hat null Kilometer und die
+  volle Punktzahl; sonst zählt der Weg bis zur nächsten Grenze — ein Tipp
+  ins Nachbarland ist also fast so gut wie ein Treffer. Das gesuchte Land
+  wird eingefärbt statt bepunktet. Umrisse kommen aus `map.js`, den Daten,
+  die auch GeoFind benutzt.
 - Linie und Ring sind nach Entfernung eingefärbt: grün am Ziel, bernstein in
-  der Mitte, rot ab 250 km. In der Auswertung hat die Punktzahl jeder Zeile
-  die Farbe ihrer Linie.
-- Die Städte sind die 71 kreisfreien Städte ab 100.000 Einwohnern, dazu
-  Hannover, Aachen und Saarbrücken (die sind nicht kreisfrei, gehören aber
-  dazu). Gezogen wird nach Einwohnerzahl gewichtet — Berlin kommt öfter dran
-  als Remscheid, drankommen kann jede.
-- Die Karte sind die 16 Bundesländer: Außengrenze plus innere Linien zur
-  Orientierung.
+  der Mitte, rot am Ende der Skala. In der Auswertung hat die Punktzahl jeder
+  Zeile die Farbe ihrer Linie.
 - Zoomen: Mausrad oder zwei Finger. Raus kommt man per Doppeltipp, über die
   Taste ⟲ oben rechts oder einfach durch Rauszoomen — ab 90 Prozent gleitet
   die Karte von allein in die Vollansicht, und danach scrollt der Finger
@@ -101,7 +111,7 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
   sobald gezoomt ist (ohne Zoom scrollt der Finger weiter die Seite), zwei
   Finger schieben immer. Ein kurzer Tipp setzt weiterhin den Pin.
 - In der Auswertung lässt sich jede Zeile antippen, genauso jede Marke auf
-  der Karte selbst: die Karte zeigt dann nur diese Stadt (Tipp, richtiger
+  der Karte selbst: die Karte zeigt dann nur dieses Ziel (Tipp, richtiger
   Ort, Linie) und schreibt Name und Entfernung an den Ort, der Rest wird
   blass. Beschriftungen, die über den Kartenrand ragen, werden hereingerückt.
   Gescrollt wird dabei nicht — wer auf der Karte tippt, bleibt auf der
