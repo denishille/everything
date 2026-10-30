@@ -156,7 +156,13 @@
   <section id="view-map" class="view">
     <div class="view-head">
       <div>
-        <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
+        <div class="head-zeile">
+          <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
+          <div class="sortbar map-modi" id="map-modi" role="group" aria-label="Karte wählen">
+            <button type="button" class="sort-chip on" data-m="de">Deutschland</button>
+            <button type="button" class="sort-chip" data-m="welt">Welt</button>
+          </div>
+        </div>
         <p class="sub" id="map-sub">Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.</p>
       </div>
       <div class="nav" aria-label="Rätsel-Navigation">
@@ -169,11 +175,6 @@
         <select class="nav-pick" id="map-pick" aria-label="Rätsel wählen"></select>
         <button class="nav-btn" id="map-next" aria-label="Nächstes Rätsel">›</button>
       </div>
-    </div>
-
-    <div class="sortbar map-modi" id="map-modi" role="group" aria-label="Karte wählen">
-      <button type="button" class="sort-chip on" data-m="de">Deutschland</button>
-      <button type="button" class="sort-chip" data-m="welt">Welt</button>
     </div>
 
     <div id="map-board">

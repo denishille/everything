@@ -949,6 +949,20 @@
       toLa: y => la1 - y / scale,
     };
   }
+  // Mercator für die Weltkarte: dieselbe Breite, aber deutlich mehr Höhe als
+  // die flache Plattkarte, und die Form stimmt dabei überall lokal.
+  function projektionMercator(la0, la1) {
+    const W = 1000, R = W / (2 * Math.PI);
+    const my = la => Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360));
+    const y1 = my(la1);
+    return {
+      W, H: Math.round((y1 - my(la0)) * R),
+      toX: lo => (lo + 180) * W / 360,
+      toY: la => (y1 - my(la)) * R,
+      toLo: x => x * 360 / W - 180,
+      toLa: y => (2 * Math.atan(Math.exp(y1 - y / R)) - Math.PI / 2) * 180 / Math.PI,
+    };
+  }
   const ringPfad = (ring, pr) => ring.map(([lo, la], i) =>
     (i ? 'L' : 'M') + pr.toX(lo).toFixed(1) + ' ' + pr.toY(la).toFixed(1)).join('') + 'Z';
 
@@ -979,7 +993,7 @@
   // ---- Modus Welt: Länder. Wer ins Land trifft, hat null Kilometer,
   //      sonst zählt der Weg bis zur nächsten Grenze.
   function modusWelt() {
-    const pr = projektion(-180, -56, 180, 84);
+    const pr = projektionMercator(-58, 84);
     const alle = window.GEO_SHAPES ? SHAPES : [];
     const pfade = alle.flatMap(sh => sh.rings.map(r => ringPfad(r, pr)));
     const laender = D.countries

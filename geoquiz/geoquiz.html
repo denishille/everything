@@ -298,7 +298,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .map-line.off, .map-pin.off, .map-true.off, .map-guess.off { opacity: .15; }
 .map-reset { position: absolute; top: .5rem; right: .5rem; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--bg); color: var(--text); font-size: 1.1rem; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
 .sortbar { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-bottom: .7rem; }
-.map-modi { margin: 0 0 1.1rem; }
+.head-zeile { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .5rem .7rem; }
+.map-modi { margin: 0 0 .35rem; }
 .map-modi .sort-chip { font-size: .85rem; padding: .4rem 1.1rem; }
 .map-ziel { fill: var(--text); fill-opacity: .45; }
 .map-ziel.off { fill-opacity: .1; }
@@ -557,7 +558,13 @@ a.icon-btn { text-decoration: none; }
   <section id="view-map" class="view">
     <div class="view-head">
       <div>
-        <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
+        <div class="head-zeile">
+          <h1 class="display"><span id="map-num" class="num"></span>GeoMap</h1>
+          <div class="sortbar map-modi" id="map-modi" role="group" aria-label="Karte wählen">
+            <button type="button" class="sort-chip on" data-m="de">Deutschland</button>
+            <button type="button" class="sort-chip" data-m="welt">Welt</button>
+          </div>
+        </div>
         <p class="sub" id="map-sub">Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.</p>
       </div>
       <div class="nav" aria-label="Rätsel-Navigation">
@@ -570,11 +577,6 @@ a.icon-btn { text-decoration: none; }
         <select class="nav-pick" id="map-pick" aria-label="Rätsel wählen"></select>
         <button class="nav-btn" id="map-next" aria-label="Nächstes Rätsel">›</button>
       </div>
-    </div>
-
-    <div class="sortbar map-modi" id="map-modi" role="group" aria-label="Karte wählen">
-      <button type="button" class="sort-chip on" data-m="de">Deutschland</button>
-      <button type="button" class="sort-chip" data-m="welt">Welt</button>
     </div>
 
     <div id="map-board">
@@ -1571,6 +1573,20 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       toLa: y => la1 - y / scale,
     };
   }
+  // Mercator für die Weltkarte: dieselbe Breite, aber deutlich mehr Höhe als
+  // die flache Plattkarte, und die Form stimmt dabei überall lokal.
+  function projektionMercator(la0, la1) {
+    const W = 1000, R = W / (2 * Math.PI);
+    const my = la => Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360));
+    const y1 = my(la1);
+    return {
+      W, H: Math.round((y1 - my(la0)) * R),
+      toX: lo => (lo + 180) * W / 360,
+      toY: la => (y1 - my(la)) * R,
+      toLo: x => x * 360 / W - 180,
+      toLa: y => (2 * Math.atan(Math.exp(y1 - y / R)) - Math.PI / 2) * 180 / Math.PI,
+    };
+  }
   const ringPfad = (ring, pr) => ring.map(([lo, la], i) =>
     (i ? 'L' : 'M') + pr.toX(lo).toFixed(1) + ' ' + pr.toY(la).toFixed(1)).join('') + 'Z';
 
@@ -1601,7 +1617,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
   // ---- Modus Welt: Länder. Wer ins Land trifft, hat null Kilometer,
   //      sonst zählt der Weg bis zur nächsten Grenze.
   function modusWelt() {
-    const pr = projektion(-180, -56, 180, 84);
+    const pr = projektionMercator(-58, 84);
     const alle = window.GEO_SHAPES ? SHAPES : [];
     const pfade = alle.flatMap(sh => sh.rings.map(r => ringPfad(r, pr)));
     const laender = D.countries
