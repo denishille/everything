@@ -983,47 +983,77 @@
       id: 'de', titel: 'Deutschland', praefix: 'map', salz: 13, nullKm: 250, minVb: pr.W / 8,
       hinweis: 'Tippe die Stadt an. Punkte nach Luftlinie.',
       pr, pfade,
-      ziele: GM.staedte.map(c => ({ n: c.n, lo: c.lo, la: c.la, gewicht: Math.sqrt(c.p) })),
-      messen: (pin, z) => ({ km: luftlinie(pin, z), lo: z.lo, la: z.la }),
+      ziele: GM.staedte.map(c => ({ n: c.n, lo: c.lo, la: c.la, alo: c.lo, ala: c.la, gewicht: Math.sqrt(c.p) })),
+      tippAus: p => ({ lo: pr.toLo(p.x), la: pr.toLa(p.y) }),
+      messen: (g, z) => ({ km: luftlinie(g, z), lo: z.lo, la: z.la }),
       zielHtml: (z, zoom, cls, sel) =>
         `<circle class="map-true${cls}" cx="${pr.toX(z.lo).toFixed(1)}" cy="${pr.toY(z.la).toFixed(1)}" r="${((sel ? 14 : 12) * zoom).toFixed(1)}"/>`,
+      tippHtml: (g, zoom, cls, farbe, sel) =>
+        `<circle class="map-guess${cls}" style="stroke:${farbe}" cx="${pr.toX(g.lo).toFixed(1)}" cy="${pr.toY(g.la).toFixed(1)}" r="${((sel ? 8.5 : 7) * zoom).toFixed(1)}"/>`,
+      pinHtml: (g, zoom) =>
+        `<circle class="map-pin" cx="${pr.toX(g.lo).toFixed(1)}" cy="${pr.toY(g.la).toFixed(1)}" r="${(9 * zoom).toFixed(1)}"/>`,
+      packen: g => ({ lo: g.lo, la: g.la }),
+      lesen: p => (p && p.lo != null ? { lo: p.lo, la: p.la } : null),
+      tippName: () => '',
     };
   }
 
-  // ---- Modus Welt: Länder. Wer ins Land trifft, hat null Kilometer,
-  //      sonst zählt der Weg bis zur nächsten Grenze.
+  // ---- Modus Welt: man wählt ein Land aus, nicht einen Punkt. Gemessen wird
+  //      die Luftlinie zwischen den beiden Ländermittelpunkten.
   function modusWelt() {
     const pr = projektionMercator(-58, 84);
     const alle = window.GEO_SHAPES ? SHAPES : [];
     const pfade = alle.flatMap(sh => sh.rings.map(r => ringPfad(r, pr)));
-    const laender = D.countries
-      .filter(c => (c.stats.area || 0) >= 10000 || (c.stats.pop || 0) >= 5e6)
-      .map(c => {
-        const rings = (SHAPE_BY_ISO[c.iso3] || []).reduce((a, sh) => a.concat(sh.rings), []);
-        let gross = null;
-        for (const r of rings) {
-          const b = ringBox(r), gr = (b[2] - b[0]) * (b[3] - b[1]);
-          if (!gross || gr > gross.gr) gross = { gr, b };
-        }
-        const b = gross ? gross.b : [c.latlng[1], c.latlng[0], c.latlng[1], c.latlng[0]];
-        return {
-          n: c.name, rings,
-          lo: (b[0] + b[2]) / 2, la: (b[1] + b[3]) / 2,       // Anker für Beschriftung
-          pfad: rings.map(r => ringPfad(r, pr)).join(''),
-          gewicht: Math.pow(Math.max(1000, c.stats.area || 1000), 0.25),
-        };
-      })
-      .filter(z => z.rings.length);
+    // alle 196 Länder sind wählbar, auch die zu kleinen für ein Rätsel
+    const waehlbar = D.countries.map((c, i) => {
+      const rings = (SHAPE_BY_ISO[c.iso3] || []).reduce((a, sh) => a.concat(sh.rings), []);
+      let gross = null;
+      for (const r of rings) {
+        const b = ringBox(r), gr = (b[2] - b[0]) * (b[3] - b[1]);
+        if (!gross || gr > gross.gr) gross = { gr, b };
+      }
+      const b = gross ? gross.b : null;
+      return {
+        w: i, n: c.name, rings,
+        lo: c.latlng[1], la: c.latlng[0],                     // Mittelpunkt, misst die Entfernung
+        alo: b ? (b[0] + b[2]) / 2 : c.latlng[1],             // Anker für die Beschriftung
+        ala: b ? (b[1] + b[3]) / 2 : c.latlng[0],
+        pfad: rings.map(r => ringPfad(r, pr)).join(''),
+        gross: (c.stats.area || 0) >= 10000 || (c.stats.pop || 0) >= 5e6,
+        gewicht: Math.pow(Math.max(1000, c.stats.area || 1000), 0.25),
+      };
+    }).filter(z => z.rings.length);
     return {
       id: 'welt', titel: 'Welt', praefix: 'wmap', salz: 97, nullKm: 2000, minVb: pr.W / 20,
-      hinweis: 'Tippe das Land an. Mitten rein gibt volle Punktzahl.',
-      pr, pfade, ziele: laender,
-      messen(pin, z) {
-        if (imLand(pin, z.rings)) return { km: 0, lo: pin.lo, la: pin.la };
-        const nah = nahePunkt(pin, z.rings);
-        return { km: luftlinie(pin, nah), lo: nah.lo, la: nah.la };
+      hinweis: 'Wähle das gesuchte Land auf der Karte.',
+      pr, pfade, waehlbar, ziele: waehlbar.filter(z => z.gross),
+      // Tipp ist ein Land, kein Punkt: das kleinste getroffene gewinnt, damit
+      // man Monaco nicht an Frankreich verliert
+      tippAus(p) {
+        const ort = { lo: pr.toLo(p.x), la: pr.toLa(p.y) };
+        let beste = null;
+        for (const z of waehlbar) {
+          if (!imLand(ort, z.rings)) continue;
+          const f = z.gewicht;
+          if (!beste || f < beste.gewicht) beste = z;
+        }
+        return beste;
+      },
+      // Treffer ist null, sonst von der Mitte des gewählten Landes bis zur
+      // Grenze des gesuchten — Nachbarn schneiden damit auch bei großen
+      // Ländern vernünftig ab
+      messen(g, z) {
+        if (g.w === z.w) return { km: 0, lo: z.lo, la: z.la };
+        const nah = nahePunkt(g, z.rings);
+        return { km: luftlinie(g, nah), lo: nah.lo, la: nah.la };
       },
       zielHtml: (z, zoom, cls) => `<path class="map-ziel${cls}" d="${z.pfad}"/>`,
+      tippHtml: (g, zoom, cls, farbe) => `<path class="map-tipp-land${cls}" style="stroke:${farbe};fill:${farbe}" d="${g.pfad}"/>`,
+      pinHtml: g => `<path class="map-tipp-land pin" d="${g.pfad}"/>`,
+      tippName: g => g.n,
+      // der gespeicherte Tipp ist nur die Nummer des Landes
+      packen: g => ({ w: g.w, lo: g.lo, la: g.la }),
+      lesen: p => (p && p.w != null ? waehlbar.find(z => z.w === p.w) : null),
     };
   }
 
@@ -1074,9 +1104,9 @@
   const mapKm = i => gmap.placed[i].km;
   const mapZiel = i => ({ lo: gmap.placed[i].zlo, la: gmap.placed[i].zla });
   const mapScore = () => gmap.placed.reduce((s, _, i) => s + mapPoints(mapKm(i)), 0);
-  const messen = (pin, i) => {
-    const m = M.messen(pin, mapCity(i));
-    return { lo: pin.lo, la: pin.la, km: m.km, zlo: m.lo, zla: m.la };
+  const messen = (g, i) => {
+    const m = M.messen(g, mapCity(i));
+    return Object.assign(M.packen(g), { km: m.km, zlo: m.lo, zla: m.la });
   };
 
   function loadMap(n) {
@@ -1097,16 +1127,19 @@
     gmap.placed = []; gmap.reveal = false; gmap.pin = null; gmap.sel = null;
     const saved = store.get(mapKey(n), null);
     if (saved && JSON.stringify(saved.cities) === JSON.stringify(gmap.cities)) {
-      // ältere Spielstände haben nur den Tipp, die Messung wird nachgeholt
-      gmap.placed = (saved.placed || []).slice(0, MAP_ROUNDS)
-        .map((p, i) => (p && p.km != null ? p : messenFuer(p, i)));
+      const alt = (saved.placed || []).slice(0, MAP_ROUNDS)
+        .map((p, i) => (p && p.km != null && M.lesen(p) ? p : nachmessen(p, i)));
+      gmap.placed = alt.includes(null) ? [] : alt;     // nicht lesbar = von vorn
     }
     gmap.round = gmap.placed.length;
     renderMap(true);
   }
-  const messenFuer = (pin, i) => {
-    const m = M.messen(pin, M.ziele[gmap.cities[i]]);
-    return { lo: pin.lo, la: pin.la, km: m.km, zlo: m.lo, zla: m.la };
+  // alter Spielstand ohne Messung: nachholen, soweit der Tipp noch lesbar ist
+  const nachmessen = (p, i) => {
+    const g = M.lesen(p);
+    if (!g) return null;
+    const m = M.messen(g, M.ziele[gmap.cities[i]]);
+    return Object.assign(M.packen(g), { km: m.km, zlo: m.lo, zla: m.la });
   };
   const saveMap = () => store.set(mapKey(gmap.num), {
     day: gmap.day, cities: gmap.cities, placed: gmap.placed,
@@ -1257,7 +1290,7 @@
   // Stadtname über dem Punkt, darunter auf Wunsch die Entfernung. Beide in
   // einer Gruppe, damit sie beim Hereinschieben zusammenbleiben.
   function beschriftung(c, z, farbe, unten) {
-    const x = M.pr.toX(c.lo).toFixed(1), y = M.pr.toY(c.la);
+    const x = M.pr.toX(c.alo).toFixed(1), y = M.pr.toY(c.ala);
     return '<g class="map-text">'
       + `<text class="map-label" x="${x}" y="${(y - 26 * z).toFixed(1)}" style="font-size:${(30 * z).toFixed(1)}px">${esc(c.n)}</text>`
       + (unten ? `<text class="map-label km" x="${x}" y="${(y + 38 * z).toFixed(1)}" style="font-size:${(25 * z).toFixed(1)}px;fill:${farbe}">${esc(unten)}</text>` : '')
@@ -1276,13 +1309,11 @@
         const c = mapCity(i), f = kmFarbe(p.km);
         teile.push(M.zielHtml(c, z, ' on', false));
         teile.push(linieHtml(p, '', f));
-        teile.push(`<circle class="map-guess" style="stroke:${f}" cx="${M.pr.toX(p.lo).toFixed(1)}" cy="${M.pr.toY(p.la).toFixed(1)}" r="${(7 * z).toFixed(1)}"/>`);
+        teile.push(M.tippHtml(M.lesen(p), z, '', f, false));
         if (gmap.reveal) teile.push(beschriftung(c, z, null, null));
       }
     });
-    if (!gmap.reveal && gmap.pin) {
-      teile.push(`<circle class="map-pin" cx="${M.pr.toX(gmap.pin.lo).toFixed(1)}" cy="${M.pr.toY(gmap.pin.la).toFixed(1)}" r="${(9 * z).toFixed(1)}"/>`);
-    }
+    if (!gmap.reveal && gmap.pin) teile.push(M.pinHtml(gmap.pin, z));
     return teile.join('');
   }
 
@@ -1294,7 +1325,7 @@
       const cls = gmap.sel == null ? '' : sel ? ' on' : ' off';
       return M.zielHtml(c, z, cls, sel)
         + linieHtml(p, cls, f)
-        + `<circle class="map-guess${cls}" style="stroke:${f}" cx="${M.pr.toX(p.lo).toFixed(1)}" cy="${M.pr.toY(p.la).toFixed(1)}" r="${((sel ? 8.5 : 7) * z).toFixed(1)}"/>`
+        + M.tippHtml(M.lesen(p), z, cls, f, sel)
         + (sel ? beschriftung(c, z, f, Math.round(p.km) + ' km') : '');
     }).join('');
   }
@@ -1344,10 +1375,13 @@
 
   function mapTap(p) {
     if (gmap.reveal || gmap.placed.length >= MAP_ROUNDS) return;
-    gmap.pin = { lo: M.pr.toLo(p.x), la: M.pr.toLa(p.y) };
+    const g = M.tippAus(p);
+    if (!g) { $('#map-hint').textContent = 'Da ist kein Land — nochmal tippen'; return; }
+    gmap.pin = g;
     gmap.karte.zeichnen();
     $('#map-set').disabled = false;
-    $('#map-hint').textContent = 'Passt? Dann „Setzen“';
+    const name = M.tippName(g);
+    $('#map-hint').textContent = name ? name + ' — passt? Dann „Setzen“' : 'Passt? Dann „Setzen“';
   }
 
   $('#map-set').addEventListener('click', () => {
@@ -1392,10 +1426,13 @@
       if (d < nahD) { nahD = d; nah = i; }
     });
     if (nahD <= grenze) return nah;
-    // in der Welt zählt auch ein Tipp irgendwo ins Land
+    // in der Welt zählt auch ein Tipp irgendwo in eines der beiden Länder
     if (M.id === 'welt') {
       const ort = { lo: M.pr.toLo(p.x), la: M.pr.toLa(p.y) };
-      for (let i = 0; i < gmap.placed.length; i++) if (imLand(ort, mapCity(i).rings)) return i;
+      for (let i = 0; i < gmap.placed.length; i++) {
+        const g = M.lesen(gmap.placed[i]);
+        if (imLand(ort, mapCity(i).rings) || (g && imLand(ort, g.rings))) return i;
+      }
     }
     return null;
   }

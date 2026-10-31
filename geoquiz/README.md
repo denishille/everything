@@ -96,13 +96,18 @@ Kopfbereich ist knapp gehalten, damit möglichst viel Karte ins Bild passt.
   Berlin kommt öfter dran als Remscheid, drankommen kann jede. Der große
   schwarze Punkt ist die Stadt, der kleine farbige Ring dein Tipp. Die Karte
   sind die 16 Bundesländer: Außengrenze plus innere Linien zur Orientierung.
-- **Welt:** gesucht sind 164 Länder — alle ab 10.000 km² oder 5 Mio.
-  Einwohnern, gewichtet mit der vierten Wurzel der Fläche, damit Große etwas
-  öfter kommen als Kleine. Wer ins Land trifft, hat null Kilometer und die
-  volle Punktzahl; sonst zählt der Weg bis zur nächsten Grenze — ein Tipp
-  ins Nachbarland ist also fast so gut wie ein Treffer. Das gesuchte Land
-  wird eingefärbt statt bepunktet. Umrisse kommen aus `map.js`, den Daten,
-  die auch GeoFind benutzt.
+- **Welt:** hier setzt man keinen Punkt, sondern wählt ein Land aus — ein
+  Tipp auf die Karte markiert das Land darunter und färbt seine Fläche ein;
+  ins Meer getippt passiert nichts. Wählbar sind alle 196 Länder, gesucht
+  werden die 164 ab 10.000 km² oder 5 Mio. Einwohnern, gewichtet mit der
+  vierten Wurzel der Fläche. Richtiges Land: null Kilometer, volle Punkte.
+  Sonst zählt die Luftlinie von der Mitte des gewählten Landes bis zur
+  Grenze des gesuchten — Nachbarn schneiden damit auch bei großen Ländern
+  vernünftig ab (Brasilien statt Argentinien: 1.575 km, 21 Punkte). In der
+  Auswertung ist das gesuchte Land grau und dein Tipp in seiner
+  Entfernungsfarbe eingefärbt. Umrisse kommen aus `map.js`, den Daten, die
+  auch GeoFind benutzt. Liegt bei mehreren Ländern dein Tipp drin
+  (Enklaven), gewinnt das kleinere.
 - Die Weltkarte läuft in Mercator (Breiten −58° bis 84°), nicht in der
   flachen Plattkarte: bei gleicher Breite wird sie dadurch von 0,40 auf 0,67
   der Breite hoch. Gerechnet wird weiterhin auf der Kugel, die Projektion
