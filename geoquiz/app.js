@@ -981,7 +981,7 @@
     }));
     return {
       id: 'de', titel: 'Deutschland', praefix: 'map', salz: 13, nullKm: 250, minVb: pr.W / 8,
-      hinweis: 'Tippe die genannte Stadt auf der Karte an. Punkte gibt es nach Luftlinie.',
+      hinweis: 'Tippe die Stadt an. Punkte nach Luftlinie.',
       pr, pfade,
       ziele: GM.staedte.map(c => ({ n: c.n, lo: c.lo, la: c.la, gewicht: Math.sqrt(c.p) })),
       messen: (pin, z) => ({ km: luftlinie(pin, z), lo: z.lo, la: z.la }),
@@ -1016,7 +1016,7 @@
       .filter(z => z.rings.length);
     return {
       id: 'welt', titel: 'Welt', praefix: 'wmap', salz: 97, nullKm: 2000, minVb: pr.W / 20,
-      hinweis: 'Tippe das genannte Land auf der Karte an. Ins Land getroffen gibt die volle Punktzahl.',
+      hinweis: 'Tippe das Land an. Mitten rein gibt volle Punktzahl.',
       pr, pfade, ziele: laender,
       messen(pin, z) {
         if (imLand(pin, z.rings)) return { km: 0, lo: pin.lo, la: pin.la };
@@ -1302,7 +1302,8 @@
   function renderMap(neuZeichnen) {
     $('#map-num').textContent = 'Rätsel #' + gmap.num;
     $('#map-sub').textContent = M.hinweis;
-    $$('#map-modi .sort-chip').forEach(b => b.classList.toggle('on', b.dataset.m === M.id));
+    $$('#map-modi .toggle-opt').forEach(b => b.classList.toggle('on', b.dataset.m === M.id));
+    $('#map-modi').classList.toggle('rechts', M.id === 'welt');
     // Setzen sitzt in der leeren Ecke: Deutschland rechts (Österreich),
     // Welt links (Südpazifik)
     $('.map-stage').classList.toggle('links', M.id === 'welt');
@@ -1473,7 +1474,7 @@
   }
 
   $('#map-modi').addEventListener('click', e => {
-    const b = e.target.closest('.sort-chip');
+    const b = e.target.closest('.toggle-opt');
     if (!b || b.dataset.m === M.id) return;
     M = holModus(b.dataset.m);
     store.set('mapModus', M.id);

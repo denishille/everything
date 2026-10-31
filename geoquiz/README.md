@@ -78,10 +78,11 @@ Pages). Alles läuft lokal, Fortschritt und Serien liegen im `localStorage`.
 
 ## GeoMap
 
-Zwei Karten, dieselbe Mechanik. Der Umschalter neben der Überschrift wechselt
-zwischen **Deutschland** (Städte) und **Welt** (Länder); jeder Modus hat
-eigene Rätsel, eigenen Spielstand und eigene Statistik, die Wahl wird
-gemerkt.
+Zwei Karten, dieselbe Mechanik. Der Schieberegler neben der Überschrift
+wechselt zwischen **Deutschland** (Städte) und **Welt** (Länder); jeder
+Modus hat eigene Rätsel, eigenen Spielstand und eigene Statistik, die Wahl
+wird gemerkt. Am Handy läuft die Karte bis an die Bildschirmränder, und der
+Kopfbereich ist knapp gehalten, damit möglichst viel Karte ins Bild passt.
 
 - 8 Runden, je ein Ziel. Auf die Karte tippen, „Setzen“, dann zeigt die
   Karte das Ziel und die Luftlinie. „Setzen“ klebt auf der Karte und bleibt
@@ -104,8 +105,9 @@ gemerkt.
   die auch GeoFind benutzt.
 - Die Weltkarte läuft in Mercator (Breiten −58° bis 84°), nicht in der
   flachen Plattkarte: bei gleicher Breite wird sie dadurch von 0,40 auf 0,67
-  der Breite hoch, am Handy also 239 statt 143 Pixel. Gerechnet wird
-  weiterhin auf der Kugel, die Projektion betrifft nur die Darstellung.
+  der Breite hoch. Gerechnet wird weiterhin auf der Kugel, die Projektion
+  betrifft nur die Darstellung. Mehr Höhe ginge nur mit leeren Bändern —
+  südlich von −56° und nördlich von 84° liegt in den Umrissdaten kein Land.
 - Linie und Ring sind nach Entfernung eingefärbt: grün am Ziel, bernstein in
   der Mitte, rot am Ende der Skala. In der Auswertung hat die Punktzahl jeder
   Zeile die Farbe ihrer Linie.
