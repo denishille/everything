@@ -994,7 +994,6 @@
         `<circle class="map-pin" cx="${pr.toX(g.lo).toFixed(1)}" cy="${pr.toY(g.la).toFixed(1)}" r="${(9 * zoom).toFixed(1)}"/>`,
       packen: g => ({ lo: g.lo, la: g.la }),
       lesen: p => (p && p.lo != null ? { lo: p.lo, la: p.la } : null),
-      tippName: () => '',
     };
   }
 
@@ -1050,7 +1049,11 @@
       zielHtml: (z, zoom, cls) => `<path class="map-ziel${cls}" d="${z.pfad}"/>`,
       tippHtml: (g, zoom, cls, farbe) => `<path class="map-tipp-land${cls}" style="stroke:${farbe};fill:${farbe}" d="${g.pfad}"/>`,
       pinHtml: g => `<path class="map-tipp-land pin" d="${g.pfad}"/>`,
-      tippName: g => g.n,
+      // Auswertung ohne Striche: das gesuchte Land in der Farbe der Leistung,
+      // der eigene Tipp daneben nur als Umriss
+      ergebnisHtml: (c, g, p, z, cls, sel, f) =>
+        `<path class="map-ziel-farbe${cls}" style="fill:${f}" d="${c.pfad}"/>`
+        + (g && g.w !== c.w ? `<path class="map-tipp-umriss${cls}" style="stroke:${f}" d="${g.pfad}"/>` : ''),
       // der gespeicherte Tipp ist nur die Nummer des Landes
       packen: g => ({ w: g.w, lo: g.lo, la: g.la }),
       lesen: p => (p && p.w != null ? waehlbar.find(z => z.w === p.w) : null),
@@ -1317,15 +1320,17 @@
     return teile.join('');
   }
 
-  // Ergebniskarte: die angeklickte Stadt bleibt stehen, der Rest tritt zurück
+  // Ergebniskarte: das angeklickte Ziel bleibt stehen, der Rest tritt zurück
+  const ergebnisStandard = (c, g, p, z, cls, sel, f) =>
+    M.zielHtml(c, z, cls, sel) + linieHtml(p, cls, f) + M.tippHtml(g, z, cls, f, sel);
+
   function ergebnisMarker(z) {
+    const zeichner = M.ergebnisHtml || ergebnisStandard;
     return gmap.placed.map((p, i) => {
       const c = mapCity(i), f = kmFarbe(p.km);
       const sel = gmap.sel === i;
       const cls = gmap.sel == null ? '' : sel ? ' on' : ' off';
-      return M.zielHtml(c, z, cls, sel)
-        + linieHtml(p, cls, f)
-        + M.tippHtml(M.lesen(p), z, cls, f, sel)
+      return zeichner(c, M.lesen(p), p, z, cls, sel, f)
         + (sel ? beschriftung(c, z, f, Math.round(p.km) + ' km') : '');
     }).join('');
   }
@@ -1380,8 +1385,7 @@
     gmap.pin = g;
     gmap.karte.zeichnen();
     $('#map-set').disabled = false;
-    const name = M.tippName(g);
-    $('#map-hint').textContent = name ? name + ' — passt? Dann „Setzen“' : 'Passt? Dann „Setzen“';
+    $('#map-hint').textContent = 'Passt? Dann „Setzen“';
   }
 
   $('#map-set').addEventListener('click', () => {

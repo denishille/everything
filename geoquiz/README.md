@@ -103,9 +103,11 @@ Kopfbereich ist knapp gehalten, damit möglichst viel Karte ins Bild passt.
   vierten Wurzel der Fläche. Richtiges Land: null Kilometer, volle Punkte.
   Sonst zählt die Luftlinie von der Mitte des gewählten Landes bis zur
   Grenze des gesuchten — Nachbarn schneiden damit auch bei großen Ländern
-  vernünftig ab (Brasilien statt Argentinien: 1.575 km, 21 Punkte). In der
-  Auswertung ist das gesuchte Land grau und dein Tipp in seiner
-  Entfernungsfarbe eingefärbt. Umrisse kommen aus `map.js`, den Daten, die
+  vernünftig ab (Brasilien statt Argentinien: 1.575 km, 21 Punkte). Welches
+  Land du angetippt hast, verrät das Spiel nicht — das herauszufinden ist ja
+  die Aufgabe. In der Auswertung gibt es keine Verbindungslinien: jedes
+  gesuchte Land ist in der Farbe deiner Leistung gefüllt (grün gut, rot
+  schlecht), dein Tipp steht als dünner Umriss daneben. Umrisse kommen aus `map.js`, den Daten, die
   auch GeoFind benutzt. Liegt bei mehreren Ländern dein Tipp drin
   (Enklaven), gewinnt das kleinere.
 - Die Weltkarte läuft in Mercator (Breiten −58° bis 84°), nicht in der

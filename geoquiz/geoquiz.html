@@ -317,6 +317,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem) 4rem
 .toggle-opt.on { color: #fff; }
 .toggle-opt:not(.on):hover { color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .toggle-thumb { transition: none; } }
+/* Auswertung der Weltkarte: gesuchtes Land in der Farbe der Leistung,
+   eigener Tipp nur als Umriss — ganz ohne Striche dazwischen */
+.map-ziel-farbe { fill-opacity: .8; }
+.map-ziel-farbe.off { fill-opacity: .12; }
+.map-ziel-farbe.on { fill-opacity: .95; }
+.map-tipp-umriss { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.map-tipp-umriss.off { stroke-opacity: .15; }
 /* der eigene Tipp in der Welt: die Landesfläche in der Entfernungsfarbe */
 .map-tipp-land { fill-opacity: .3; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .map-tipp-land.pin { fill: var(--volt); stroke: var(--text); fill-opacity: .75; }
@@ -1640,7 +1647,6 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
         `<circle class="map-pin" cx="${pr.toX(g.lo).toFixed(1)}" cy="${pr.toY(g.la).toFixed(1)}" r="${(9 * zoom).toFixed(1)}"/>`,
       packen: g => ({ lo: g.lo, la: g.la }),
       lesen: p => (p && p.lo != null ? { lo: p.lo, la: p.la } : null),
-      tippName: () => '',
     };
   }
 
@@ -1696,7 +1702,11 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
       zielHtml: (z, zoom, cls) => `<path class="map-ziel${cls}" d="${z.pfad}"/>`,
       tippHtml: (g, zoom, cls, farbe) => `<path class="map-tipp-land${cls}" style="stroke:${farbe};fill:${farbe}" d="${g.pfad}"/>`,
       pinHtml: g => `<path class="map-tipp-land pin" d="${g.pfad}"/>`,
-      tippName: g => g.n,
+      // Auswertung ohne Striche: das gesuchte Land in der Farbe der Leistung,
+      // der eigene Tipp daneben nur als Umriss
+      ergebnisHtml: (c, g, p, z, cls, sel, f) =>
+        `<path class="map-ziel-farbe${cls}" style="fill:${f}" d="${c.pfad}"/>`
+        + (g && g.w !== c.w ? `<path class="map-tipp-umriss${cls}" style="stroke:${f}" d="${g.pfad}"/>` : ''),
       // der gespeicherte Tipp ist nur die Nummer des Landes
       packen: g => ({ w: g.w, lo: g.lo, la: g.la }),
       lesen: p => (p && p.w != null ? waehlbar.find(z => z.w === p.w) : null),
@@ -1963,15 +1973,17 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     return teile.join('');
   }
 
-  // Ergebniskarte: die angeklickte Stadt bleibt stehen, der Rest tritt zurück
+  // Ergebniskarte: das angeklickte Ziel bleibt stehen, der Rest tritt zurück
+  const ergebnisStandard = (c, g, p, z, cls, sel, f) =>
+    M.zielHtml(c, z, cls, sel) + linieHtml(p, cls, f) + M.tippHtml(g, z, cls, f, sel);
+
   function ergebnisMarker(z) {
+    const zeichner = M.ergebnisHtml || ergebnisStandard;
     return gmap.placed.map((p, i) => {
       const c = mapCity(i), f = kmFarbe(p.km);
       const sel = gmap.sel === i;
       const cls = gmap.sel == null ? '' : sel ? ' on' : ' off';
-      return M.zielHtml(c, z, cls, sel)
-        + linieHtml(p, cls, f)
-        + M.tippHtml(M.lesen(p), z, cls, f, sel)
+      return zeichner(c, M.lesen(p), p, z, cls, sel, f)
         + (sel ? beschriftung(c, z, f, Math.round(p.km) + ' km') : '');
     }).join('');
   }
@@ -2026,8 +2038,7 @@ window.GEO_SHAPES={q:20,s:[["ZWE",[[626,-448,-8,2,-14,0,-11,3,-6,-1,-6,4,0,4,-21
     gmap.pin = g;
     gmap.karte.zeichnen();
     $('#map-set').disabled = false;
-    const name = M.tippName(g);
-    $('#map-hint').textContent = name ? name + ' — passt? Dann „Setzen“' : 'Passt? Dann „Setzen“';
+    $('#map-hint').textContent = 'Passt? Dann „Setzen“';
   }
 
   $('#map-set').addEventListener('click', () => {
