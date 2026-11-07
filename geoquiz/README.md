@@ -243,8 +243,11 @@ und **PokePlay**, gleiche Optik, gleiche Rätselnummern, eigener
 Spielstand (`localStorage`-Präfix `pokebrudis.`). Erreichbar über den
 Glumanda-Knopf in der Kopfzeile, zurück geht es über den Globus.
 
-- **PokeFind** – geheimes Pokémon in 10 Versuchen (150 kennt nicht jeder auswendig). Hinweise: Pokédex-Nummer,
-  Typ, Fundort, Lebensraum, Entwicklungsstufe, Farbe, Größe, Gewicht. Pfeile zeigen die Richtung,
+- **PokeFind** – geheimes Pokémon in 10 Versuchen (150 kennt nicht jeder auswendig). Hinweise: Stufe, Endstufe,
+  Typ, Fundort, Lebensraum, Farbe, Größe, Gewicht. „Stufe“ ist die eigene
+  Entwicklungsstufe, „Endstufe“ die höchste der ganzen Reihe (Bisasam 1 von 3,
+  Pikachu 1 von 2, Relaxo 1 von 1) — Verzweigungen wie bei Evoli zählen nicht
+  mehrfach, und gezählt wird nur innerhalb der ersten 150. Pfeile zeigen die Richtung,
   gemeinsame Typen und Fundorte stehen vorn und schwarz. Die Fundorte kommen
   aus Rot, Blau und Gelb; 32 der 150 gibt es dort nur durch Entwicklung.
   Unter dem Eingabefeld klappt „Alle 150 Pokémon“ eine Übersicht mit Sprite,

@@ -37,6 +37,15 @@ LEBENSRAUM = {
 BIS = 150                                   # die ersten 150, ohne Mew
 GEN1 = {"1", "2", "3"}                      # Rot, Blau, Gelb
 
+def tiefe(arten, sid):
+    """Entwicklungsstufe innerhalb der ersten BIS Arten."""
+    stufe, vor = 1, arten[sid]["evolves_from_species_id"]
+    while vor and int(vor) <= BIS:
+        stufe += 1
+        vor = arten[vor]["evolves_from_species_id"]
+    return stufe
+
+
 def lies(pfad, *, schluessel=None):
     with open(pfad, newline="", encoding="utf-8") as f:
         zeilen = list(csv.DictReader(f))
@@ -82,6 +91,14 @@ def main():
         typen.setdefault(z["pokemon_id"], []).append((int(z["slot"]), typname[z["type_id"]]))
 
     arten = lies(weg("pokemon_species.csv"), schluessel="id")
+    # Wie viele Stufen hat die ganze Entwicklungsreihe? Tiefster Punkt der
+    # Familie, Verzweigungen wie bei Evoli zählen nicht mehrfach.
+    kette_tief = {}
+    for sid, s in arten.items():
+        if not sid.isdigit() or int(sid) > BIS:
+            continue
+        k = s["evolution_chain_id"]
+        kette_tief[k] = max(kette_tief.get(k, 0), tiefe(arten, sid))
     liste = []
     for z in lies(weg("pokemon.csv")):
         sid = z["species_id"]
@@ -90,10 +107,7 @@ def main():
         s = arten[sid]
         # Entwicklungsstufe: wie oft man zurückgehen kann, aber nur innerhalb der
         # ersten 150 — sonst stünde Pikachu wegen Pichu auf Stufe 2
-        stufe, vor = 1, s["evolves_from_species_id"]
-        while vor and int(vor) <= BIS:
-            stufe += 1
-            vor = arten[vor]["evolves_from_species_id"]
+        stufe = tiefe(arten, sid)
         liste.append({
             "id": int(sid),
             "name": art[sid]["name"],
@@ -106,6 +120,7 @@ def main():
             "habitat": ortname.get(s["habitat_id"] or ""),
             "places": orte.get(z["id"], []),              # leer = in Gen 1 nur durch Entwicklung
             "stage": stufe,
+            "stages": kette_tief[s["evolution_chain_id"]],
         })
     liste.sort(key=lambda p: p["id"])
 

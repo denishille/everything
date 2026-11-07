@@ -131,8 +131,8 @@
   // vier Zahlen (je 1 Spalte), dann die vier Wortfelder (je 2). Macht 12
   // Spalten — volle Reihen auf dem Handy (4 Spalten) wie am Rechner (6).
   const HINTS = [
-    { key: 'num', lbl: 'Nummer' },
     { key: 'stage', lbl: 'Stufe' },
+    { key: 'stages', lbl: 'Endstufe' },
     { key: 'height', lbl: 'Größe' },
     { key: 'weight', lbl: 'Gewicht' },
     { key: 'types', lbl: 'Typ', wide: true },
@@ -160,7 +160,7 @@
 
   function evalFind(g, s) {
     const out = {};
-    out.num = zahlZelle(g.id, s.id, '#' + g.id);
+    out.stages = zahlZelle(g.stages, s.stages, nf0.format(g.stages));
     out.types = chipZelle(g.types, s.types, '–', 2);
     out.places = chipZelle(g.places, s.places, 'nur Entwicklung');
     out.stage = zahlZelle(g.stage, s.stage, nf0.format(g.stage));
